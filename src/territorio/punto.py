@@ -54,7 +54,7 @@ class Punto:
         return self.get_costo_movimiento(tipo_unidad) >= 999
 
     def __str__(self) -> str:
-        dueno = self.propietario.nombre if hasattr(self.propietario, 'nombre') else "Tierra de nadie"
+        dueno = getattr(self.propietario, 'nombre', "Tierra de nadie")
         return f"Punto en {self.coordenada} | Terreno: {self.tipo_terreno.name} | Dueño: {dueno}"
 
 
