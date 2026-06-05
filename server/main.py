@@ -14,13 +14,13 @@ from server.websocket.gestor_ws import manager  # <-- Importamos el gestor
 app = FastAPI(
     title="Satrapia API",
     description="API para el juego de estrategia Satrapia",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,23 +28,26 @@ app.add_middleware(
 app.include_router(admin_router, prefix="/admin", tags=["Administración"])
 app.include_router(jugador_router, prefix="/jugador", tags=["Jugador"])
 
+
 @app.get("/")
 async def root():
     return {
         "mensaje": "🏛️ Bienvenido al servidor de Satrapia",
         "version": "0.1.0",
-        "partidas_activas": len(game_controller.partidas_activas)
+        "partidas_activas": len(game_controller.partidas_activas),
     }
+
 
 # ==========================================
 # ENDPOINT DE WEBSOCKET (¡La magia en tiempo real!)
 # ==========================================
 @app.websocket("/ws/{partida_id}/{jugador_nombre}")
 async def websocket_endpoint(websocket: WebSocket, partida_id: str, jugador_nombre: str):
-    """
-    Punto de conexión para los clientes.
-    Un jugador se conecta a la sala de su partida.
-    """
+    # Verificar que la partida existe antes de aceptar la conexión
+    if partida_id not in game_controller.partidas_activas:
+        await websocket.close(code=1008, reason="Partida no encontrada")
+        return
+
     await manager.connect(websocket, partida_id)
 
     # Mensaje de bienvenida al conectarse
@@ -89,9 +92,4 @@ async def websocket_endpoint(websocket: WebSocket, partida_id: str, jugador_nomb
         })
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "server.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=True
-    )
+    uvicorn.run("server.main:app", host=settings.HOST, port=settings.PORT, reload=True)
