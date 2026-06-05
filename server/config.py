@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Juego
-    TURN_DURATION_SECONDS: int = 60  # Duración de cada turno (1 minuto)
+    TURN_DURATION_SECONDS: int = 10  # Duración de cada turno (1 minuto)
     MAX_PLAYERS_PER_GAME: int = 8
 
     # Seguridad (para más adelante)
@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 # Instancia global de la configuración
 settings = Settings()

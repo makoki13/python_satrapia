@@ -54,19 +54,27 @@ class ControladorPartida:
     def iniciar_partida(self, partida_id: str) -> tuple[bool, str]:
         """
         Transiciona la partida a EN_CURSO.
-        Aquí es donde el servidor asigna los roles y genera el mundo.
+        Valida el estado y el número de jugadores antes de delegar a la partida.
         """
         partida = self.partidas_activas.get(partida_id)
         if not partida:
             return False, "❌ Partida no encontrada."
 
+        # Comprobaciones previas para dar mensajes de error detallados
+        if partida.estado != EstadoPartida.LOBBY:
+            return False, f"❌ La partida no está en lobby (estado actual: {partida.estado.name})."
+
+        if len(partida.jugadores) < 2:
+            return False, f"❌ Faltan jugadores. Hay {len(partida.jugadores)}/2 jugadores unidos."
+
+        # Delegamos al objeto Partida (que hará sus propias validaciones y cambiará el estado)
         exito = partida.iniciar_partida()
         if not exito:
-            return False, "❌ No se pudo iniciar (faltan jugadores o no está en lobby)."
+            return False, "❌ No se pudo iniciar la partida (error interno)."
 
         # 🌍 MAGIA DEL MOTOR: Asignación de roles y generación de mundo
         self._distribuir_roles_iniciales(partida)
-        # self._generar_mapa(partida) # <-- Futuro: Aquí generaremos los Puntos y Reinos
+        # self._generar_mapa(partida) # <-- Futuro
 
         for jugador in partida.jugadores:
             jugador.activar()

@@ -14,8 +14,11 @@ class ConnectionManager:
         self.active_connections: dict[str, list[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, partida_id: str):
-        """Acepta la conexión y la registra en la sala de la partida."""
-        await websocket.accept()
+        """
+        Registra la conexión en la sala de la partida.
+        NOTA: El websocket.accept() ya se hizo en main.py, aquí solo registramos.
+        """
+        # ❌ ELIMINADO: await websocket.accept()  ← Esta línea causaba el problema
         if partida_id not in self.active_connections:
             self.active_connections[partida_id] = []
         self.active_connections[partida_id].append(websocket)
@@ -44,7 +47,7 @@ class ConnectionManager:
                 try:
                     await connection.send_json(message)
                 except Exception:
-                    # Si la conexión está rota, la ignoramos (se limpiará al detectar el error)
+                    # Si la conexión está rota, la ignoramos
                     pass
 
 # Instancia global que usará FastAPI
