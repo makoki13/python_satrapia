@@ -9,6 +9,7 @@ from src.usuarios.usuario import Usuario
 
 class Rol(Enum):
     """Roles asimétricos disponibles en el mundo de Satrapia."""
+    SIN_ASIGNAR = "Sin Asignar"  # <-- Nuevo estado por defecto
     EMPERADOR = "Emperador"
     SATRAPA = "Sátrapa"
     JEFE = "Jefe Nómada"
@@ -27,40 +28,29 @@ class EstadoJugador(Enum):
 class Jugador:
     """
     Representa la encarnación de un Usuario dentro de una Partida específica.
-    Gestiona su rol, su estado y su facción (Reino o Tribu).
     """
 
-    # ==========================================
     # ATRIBUTOS OBLIGATORIOS
-    # ==========================================
     usuario: Usuario
     partida: Partida
-    nombre_partida: str  # El nombre de su personaje, reino o tribu en esta sesión
+    nombre_partida: str
 
-    # ==========================================
     # ATRIBUTOS CON VALOR POR DEFECTO
-    # ==========================================
-    rol: Rol | None = None
+    # ¡Adiós al "| None"! Ahora siempre es un Enum válido.
+    rol: Rol = Rol.SIN_ASIGNAR
     estado: EstadoJugador = EstadoJugador.EN_LOBBY
 
-    # ==========================================
     # REFERENCIAS AL MUNDO DEL JUEGO
-    # ==========================================
-    # Aquí guardaremos el objeto 'Reino' o 'Tribu'.
     faccion: Any = None
 
-    # ==========================================
     # VALIDACIONES AL CREAR
-    # ==========================================
     def __post_init__(self):
         if not self.nombre_partida.strip():
             raise ValueError("El nombre en la partida no puede estar vacío.")
         if len(self.nombre_partida) > 30:
             raise ValueError("El nombre en la partida es demasiado largo (máx 30 caracteres).")
 
-    # ==========================================
     # MÉTODOS DE GESTIÓN
-    # ==========================================
     def asignar_rol(self, rol: Rol) -> None:
         """Asigna el destino político del jugador en la partida."""
         self.rol = rol
@@ -72,25 +62,20 @@ class Jugador:
         print(f"🏰 {self.nombre_partida} ahora controla: {getattr(faccion, 'nombre', 'Facción desconocida')}")
 
     def activar(self) -> None:
-        """Marca al jugador como listo cuando la partida comienza."""
         if self.estado == EstadoJugador.EN_LOBBY:
             self.estado = EstadoJugador.ACTIVO
 
     def eliminar(self, motivo: str = "Derrotado") -> None:
-        """Marca al jugador como eliminado (su reino cae o su tribu es dispersada)."""
         if self.estado == EstadoJugador.ACTIVO:
             self.estado = EstadoJugador.ELIMINADO
             print(f"💀 {self.nombre_partida} ha sido eliminado. Motivo: {motivo}")
 
     def declarar_vencedor(self) -> None:
-        """Marca al jugador como ganador de la partida."""
         self.estado = EstadoJugador.VENCEDOR
         print(f"🏆 ¡{self.nombre_partida} ha logrado la victoria!")
 
     def __str__(self) -> str:
-        rol_str = self.rol.value if self.rol else "Sin asignar"
-        return f"Jugador: {self.nombre_partida} ({rol_str}) | Estado: {self.estado.value}"
-
+        return f"Jugador: {self.nombre_partida} ({self.rol.value}) | Estado: {self.estado.value}"
 
 # ==========================================
 # BLOQUE DE PRUEBAS (Usando clases reales)
