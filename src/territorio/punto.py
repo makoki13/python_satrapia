@@ -1,88 +1,92 @@
 # src/territorio/punto.py
-from dataclasses import dataclass
-from enum import Enum, auto
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.coordenada import Coordenada
+from src.territorio.terreno import TipoTerreno
 
-
-class TipoTerreno(Enum):
-    """Definición de los terrenos físicos del mapa."""
-    LLANURA = auto()
-    BOSQUE = auto()
-    MONTAÑA = auto()
-    MAR = auto()
-    DESIERTO = auto()
-    PICO = auto()  # Intransitable (cumbres nevadas o escarpadas)
 
 @dataclass
 class Punto:
     """
-    Representa una casilla o nodo del mapa con sus características físicas y políticas.
-    Es mutable, ya que su propietario o estado pueden cambiar durante la partida.
+    Representa una casilla del mapa (1 km²).
+    Contiene información sobre el terreno, propietario y posibles estructuras.
     """
 
+    # ==========================================
+    # ATRIBUTOS OBLIGATORIOS
+    # ==========================================
     coordenada: Coordenada
-    tipo_terreno: TipoTerreno
-    propietario: Any = None  # Futuro: Aquí vincularemos al objeto 'Reino'
 
-    def get_costo_movimiento(self, tipo_unidad: str = "terrestre") -> int:
-        """
-        Devuelve el costo de movimiento (en puntos de acción/turno) para entrar en este punto.
-        Un valor de 999 se considera intransitable.
-        """
-        # Tabla de costos de movimiento base
-        costos_base = {
-            TipoTerreno.LLANURA: 1,
-            TipoTerreno.BOSQUE: 2,
-            TipoTerreno.DESIERTO: 2,
-            TipoTerreno.MONTAÑA: 3,
-            TipoTerreno.MAR: 999,
-            TipoTerreno.PICO: 999  # Los picos son muros naturales
-        }
+    # ==========================================
+    # ATRIBUTOS CON VALOR POR DEFECTO
+    # ==========================================
+    # Por defecto, toda casilla nueva es una llanura (terreno neutro)
+    terreno: TipoTerreno = TipoTerreno.LLANURA
+    elevacion: int = 0  # Para el futuro: altura sobre el nivel del mar
 
-        costo = costos_base.get(self.tipo_terreno, 1)
+    # Propietario (Reino, Tribu o None). Usamos Any por flexibilidad.
+    propietario: Any = None
 
-        # Lógica especial: El mar es infranqueable para unidades terrestres
-        if self.tipo_terreno == TipoTerreno.MAR and tipo_unidad == "terrestre":
-            return 999
+    # Aquí guardaremos referencias a ciudades, ejércitos, etc. (futuro)
+    estructura: Any = None
+    unidades: list = field(default_factory=list)
 
-        return costo
+    # ==========================================
+    # PROPIEDADES DERIVADAS (Del terreno)
+    # ==========================================
+    def es_transitable(self) -> bool:
+        """Indica si una unidad terrestre puede pasar por aquí."""
+        return self.terreno.transitable
 
-    def es_intransitable(self, tipo_unidad: str = "terrestre") -> bool:
-        """Método auxiliar rápido para saber si una unidad puede pisar esta casilla."""
-        return self.get_costo_movimiento(tipo_unidad) >= 999
+    def es_tierra(self) -> bool:
+        """Indica si es una casilla de tierra (no agua)."""
+        return self.terreno.es_tierra
+
+    def es_agua(self) -> bool:
+        """Indica si es una casilla de agua."""
+        return self.terreno.es_agua()
+
+    def es_construible(self) -> bool:
+        """Indica si se puede construir una ciudad o edificio aquí."""
+        return self.terreno.construible and self.estructura is None
+
+    def get_coste_movimiento(self) -> int:
+        """Devuelve el coste de movimiento para atravesar este punto."""
+        return self.terreno.coste_movimiento
+
+    # ==========================================
+    # MÉTODOS
+    # ==========================================
+    def tiene_propietario(self) -> bool:
+        """Devuelve True si el punto pertenece a algún Reino o Tribu."""
+        return self.propietario is not None
 
     def __str__(self) -> str:
-        dueno = getattr(self.propietario, 'nombre', "Tierra de nadie")
-        return f"Punto en {self.coordenada} | Terreno: {self.tipo_terreno.name} | Dueño: {dueno}"
+        dueno = getattr(self.propietario, 'nombre', 'Tierra de nadie')
+        return f"Punto{self.coordenada} [{self.terreno}] - {dueno}"
 
 
 # ==========================================
 # BLOQUE DE PRUEBAS
 # ==========================================
 if __name__ == "__main__":
-    print("--- 🚀 Iniciando pruebas de Punto ---\n")
+    print("--- 📍 Probando Puntos del Mapa ---\n")
 
-    # Creamos distintos tipos de terreno en diferentes coordenadas
-    p_llanura = Punto(Coordenada(1, 1), TipoTerreno.LLANURA)
-    p_montana = Punto(Coordenada(1, 2), TipoTerreno.MONTAÑA)
-    p_mar = Punto(Coordenada(1, 3), TipoTerreno.MAR)
-    p_pico = Punto(Coordenada(1, 4), TipoTerreno.PICO)
+    # 1. Punto por defecto (llanura)
+    p1 = Punto(Coordenada(50, 50))
+    print(f"✅ {p1}")
+    print(f"   Transitable: {p1.es_transitable()} | Construible: {p1.es_construible()}")
 
-    print(f"✅ {p_llanura}")
-    print(f"✅ {p_montana}")
-    print(f"✅ {p_mar}")
-    print(f"✅ {p_pico}\n")
+    # 2. Punto de montaña
+    p2 = Punto(Coordenada(51, 50), terreno=TipoTerreno.MONTAÑA)
+    print(f"\n✅ {p2}")
+    print(f"   Transitable: {p2.es_transitable()} | Construible: {p2.es_construible()}")
+    print(f"   Coste de movimiento: {p2.get_coste_movimiento()} (vs llanura: {p1.get_coste_movimiento()})")
 
-    # Probamos los costos de movimiento para una unidad terrestre
-    print("--- Costos de movimiento (Unidad Terrestre) ---")
-    print(f"Llanura: {p_llanura.get_costo_movimiento('terrestre')} (Esperado: 1)")
-    print(f"Montaña: {p_montana.get_costo_movimiento('terrestre')} (Esperado: 3)")
-    print(f"Mar: {p_mar.get_costo_movimiento('terrestre')} (Esperado: 999 - Intransitable)")
-    print(f"Pico: {p_pico.get_costo_movimiento('terrestre')} (Esperado: 999 - Intransitable)\n")
-
-    # Probamos el método auxiliar
-    print(f"¿El Pico es intransitable? {p_pico.es_intransitable('terrestre')} (Esperado: True)")
+    # 3. Punto de mar
+    p3 = Punto(Coordenada(52, 50), terreno=TipoTerreno.MAR)
+    print(f"\n✅ {p3}")
+    print(f"   ¿Es agua? {p3.es_agua()} | ¿Transitable por tierra? {p3.es_transitable()}")
 
     print("\n--- Fin de las pruebas ---")
