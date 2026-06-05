@@ -55,6 +55,14 @@ class Punto:
         """Devuelve el coste de movimiento para atravesar este punto."""
         return self.terreno.coste_movimiento
 
+    def __hash__(self) -> int:
+        """
+        Define la identidad del punto para poder usarlo en sets.
+        Dos puntos son el mismo si tienen la misma coordenada,
+        independientemente de su terreno o dueño actual.
+        """
+        return hash(self.coordenada)
+
     # ==========================================
     # MÉTODOS
     # ==========================================

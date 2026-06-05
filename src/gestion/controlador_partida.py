@@ -2,6 +2,10 @@
 
 from src.core.coordenada import Coordenada
 from src.gestion.partida import ConfiguracionMapa, EstadoPartida, Partida
+from src.territorio.generador_mapas import GeneradorMapas
+from src.territorio.reino import Reino
+from src.territorio.tribu import Tribu
+from src.territorio.zona_disponible import TipoFaccion
 from src.usuarios.jugador import EstadoJugador, Jugador, Rol
 from src.usuarios.usuario import Usuario
 
@@ -18,11 +22,15 @@ class ControladorPartida:
         # Clave: ID de la partida (str), Valor: Objeto Partida
         self.partidas_activas: dict[str, Partida] = {}
 
+        # Diccionario paralelo para guardar los generadores de mapas por partida
+        # Clave: ID de la partida (str), Valor: Objeto GeneradorMapas
+        self.generadores_mapas: dict[str, GeneradorMapas] = {}
+
     # ==========================================
     # 1. GESTIÓN DEL CICLO DE VIDA
     # ==========================================
     def crear_partida(self, nombre: str, creador: Usuario, modo_desarrollo: bool = False) -> Partida:
-        """Crea una nueva partida, la registra en el servidor y devuelve el objeto."""
+        """Crea una nueva partida, genera el mundo y la registra en el servidor."""
         config = ConfiguracionMapa.modo_desarrollo() if modo_desarrollo else ConfiguracionMapa.modo_produccion()
 
         partida = Partida(
@@ -31,8 +39,14 @@ class ControladorPartida:
             configuracion_mapa=config
         )
 
+        # 🌍 GENERACIÓN DEL MUNDO (Nuevo)
+        generador = GeneradorMapas(partida.mapa)
+        generador.generar_mundo()
+        self.generadores_mapas[partida.id] = generador
+
         self.partidas_activas[partida.id] = partida
         print(f"🎲 [SERVIDOR] Partida '{nombre}' creada con ID {partida.id[:8]}...")
+        print(f"🗺️ [SERVIDOR] Mundo generado con {len(generador.zonas_disponibles)} zonas disponibles.")
         return partida
 
     def unir_jugador(self, partida_id: str, usuario: Usuario, nombre_personaje: str) -> tuple[bool, str, Jugador | None]:
@@ -54,7 +68,7 @@ class ControladorPartida:
     def iniciar_partida(self, partida_id: str) -> tuple[bool, str]:
         """
         Transiciona la partida a EN_CURSO.
-        Valida el estado y el número de jugadores antes de delegar a la partida.
+        Asigna roles, zonas del mapa y crea las facciones (Reinos/Tribus).
         """
         partida = self.partidas_activas.get(partida_id)
         if not partida:
@@ -67,14 +81,13 @@ class ControladorPartida:
         if len(partida.jugadores) < 2:
             return False, f"❌ Faltan jugadores. Hay {len(partida.jugadores)}/2 jugadores unidos."
 
-        # Delegamos al objeto Partida (que hará sus propias validaciones y cambiará el estado)
+        # Delegamos al objeto Partida (que cambiará el estado)
         exito = partida.iniciar_partida()
         if not exito:
             return False, "❌ No se pudo iniciar la partida (error interno)."
 
-        # 🌍 MAGIA DEL MOTOR: Asignación de roles y generación de mundo
-        self._distribuir_roles_iniciales(partida)
-        # self._generar_mapa(partida) # <-- Futuro
+        # 🌍 MAGIA DEL MOTOR: Asignación de roles, zonas y creación de facciones
+        self._distribuir_roles_y_facciones(partida)
 
         for jugador in partida.jugadores:
             jugador.activar()
@@ -142,21 +155,92 @@ class ControladorPartida:
     # ==========================================
     # MÉTODOS PRIVADOS (Lógica Interna)
     # ==========================================
-    def _distribuir_roles_iniciales(self, partida: Partida) -> None:
-        """Lógica temporal para asignar roles al empezar."""
+    def _distribuir_roles_y_facciones(self, partida: Partida) -> None:
+        """
+        Asigna roles a los jugadores, les asigna zonas del mapa y crea sus facciones.
+        """
         if not partida.jugadores:
             return
 
+        generador = self.generadores_mapas.get(partida.id)
+        if not generador:
+            print("❌ Error: No se encontró el generador de mapas para esta partida.")
+            return
+
+        # Lógica temporal: asignar roles en orden
+        roles_disponibles = [Rol.EMPERADOR, Rol.JEFE, Rol.SATRAPA, Rol.SATRAPA, Rol.SATRAPA]
+
         for i, jugador in enumerate(partida.jugadores):
-            if i == 0:
-                jugador.asignar_rol(Rol.EMPERADOR)
-            elif i == 1:
-                jugador.asignar_rol(Rol.JEFE)
+            if i < len(roles_disponibles):
+                rol = roles_disponibles[i]
+                jugador.asignar_rol(rol)
+
+                # 🏰 CREACIÓN DE FACCIÓN (Nuevo)
+                self._crear_faccion_para_jugador(partida, jugador, generador)
             else:
-                jugador.asignar_rol(Rol.SATRAPA)
+                # Si hay más jugadores que roles definidos, los dejamos sin asignar
+                pass
+
+    def _crear_faccion_para_jugador(self, partida: Partida, jugador: Jugador, generador: GeneradorMapas) -> None:
+        """
+        Crea el Reino o Tribu del jugador y lo vincula con su zona del mapa.
+        """
+        # Pedir al generador una zona adecuada para el rol del jugador
+        zona = generador.asignar_zona_a_jugador(jugador.rol)
+
+        if not zona:
+            print(f"⚠️ No se pudo asignar zona a {jugador.nombre_partida}")
+            return
+
+        # Crear la facción según el tipo
+        if zona.tipo_faccion == TipoFaccion.TRIBU:
+            # Crear Tribu nómada
+            tribu = Tribu(
+                nombre=f"Tribu de {jugador.nombre_partida}",
+                ubicacion_actual=zona.coordenada_central
+            )
+            jugador.asignar_faccion(tribu)
+            print(f"🏕️ Creada {tribu} para {jugador.nombre_partida}")
+
+        else:
+            # Crear Reino (Imperio o Satrapía)
+            es_imperial = (zona.tipo_faccion == TipoFaccion.IMPERIO)
+            reino = Reino(
+                nombre=f"Reino de {jugador.nombre_partida}",
+                es_imperial=es_imperial
+            )
+            jugador.asignar_faccion(reino)
+
+            # Asignar los puntos del mapa alrededor de la zona al reino
+            self._asignar_territorio_inicial(partida, reino, zona)
+            print(f"🏰 Creado {reino} para {jugador.nombre_partida} con {len(reino.puntos_controlados)} puntos")
+
+    def _asignar_territorio_inicial(self, partida: Partida, reino: Reino, zona) -> None:
+        """
+        Asigna los puntos del mapa dentro del radio de la zona al reino.
+        """
+        centro = zona.coordenada_central
+        radio = zona.radio
+
+        for x in range(centro.x - radio, centro.x + radio + 1):
+            for y in range(centro.y - radio, centro.y + radio + 1):
+                # Calcular distancia al centro
+                dx = x - centro.x
+                dy = y - centro.y
+                distancia = (dx**2 + dy**2)**0.5
+
+                # Solo asignar puntos dentro del radio
+                if distancia <= radio:
+                    punto = partida.mapa.puntos.get(Coordenada(x, y))
+                    if punto and punto.es_tierra() and not punto.tiene_propietario():
+                        reino.agregar_punto(punto)
 
     def _validar_y_mover(self, partida: Partida, jugador: Jugador, destino: Coordenada) -> tuple[bool, str]:
         """Valida si una facción puede moverse a un lugar."""
+        # Verificar que el jugador tiene facción asignada
+        if jugador.faccion is None:
+            return False, "❌ No tienes una facción asignada aún."
+
         if not partida.mapa.es_coordenada_valida(destino):
             return False, "❌ Destino fuera de los límites del mundo conocido."
 
@@ -168,10 +252,6 @@ class ControladorPartida:
 
     def _recaudar_impuestos(self, partida: Partida, jugador: Jugador) -> tuple[bool, str]:
         """Ejemplo de orden económica."""
-
-        # Garantía para Pylance: "Te aseguro que el rol existe en este punto"
-        assert jugador.rol is not None, "Bug crítico: Se intentó recaudar impuestos sin rol asignado."
-
         if jugador.rol == Rol.SIN_ASIGNAR:
             return False, "❌ No tienes un rol asignado aún."
 
@@ -191,15 +271,15 @@ if __name__ == "__main__":
     servidor = ControladorPartida()
 
     # 2. Crear Usuarios (Simulando peticiones de registro)
-    u1 = Usuario("admin_god", "admin@satrapia.com", "Pass1234567!")
-    u2 = Usuario("jugador_1", "j1@satrapia.com", "Pass1234567!")
-    u3 = Usuario("jugador_2", "j2@satrapia.com", "Pass1234567!")
+    u1 = Usuario(username="admin_god", email="admin@satrapia.com", _password_hash="Pass1234567!")
+    u2 = Usuario(username="jugador_1", email="j1@satrapia.com", _password_hash="Pass1234567!")
+    u3 = Usuario(username="jugador_2", email="j2@satrapia.com", _password_hash="Pass1234567!")
 
-    # 3. Crear Partida
+    # 3. Crear Partida (ahora genera el mundo automáticamente)
     print("=== Creando Partida ===")
     partida = servidor.crear_partida("La Caída de Roma", u1, modo_desarrollo=True)
 
-        # 4. Unir Jugadores
+    # 4. Unir Jugadores
     print("\n=== Uniendo Jugadores ===")
 
     # Jugador 1
@@ -217,11 +297,17 @@ if __name__ == "__main__":
     print(msg3)
     assert j3 is not None, "Error crítico en prueba: j3 no debería ser None"
 
-    # 5. Iniciar Partida
+    # 5. Iniciar Partida (ahora asigna roles, zonas y crea facciones)
     print("\n=== Iniciando Partida ===")
     exito, msg_inicio = servidor.iniciar_partida(partida.id)
     print(msg_inicio)
     print(f"Roles asignados: {j1.rol.value}, {j2.rol.value}, {j3.rol.value}")
+
+    # Mostrar las facciones creadas
+    print("\nFacciones creadas:")
+    print(f"   {j1.nombre_partida}: {j1.faccion}")
+    print(f"   {j2.nombre_partida}: {j2.faccion}")
+    print(f"   {j3.nombre_partida}: {j3.faccion}")
 
     # 6. Procesar Órdenes (Simulando WebSockets recibiendo datos)
     print("\n=== Procesando Órdenes (Turno 1) ===")
