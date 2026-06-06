@@ -4,9 +4,23 @@ Singleton de configuración global del juego.
 Se actualizará dinámicamente conforme se completen investigaciones.
 """
 
+from dataclasses import field
+
 
 class GameConfig:
     """Configuración global parametrizable y evolutiva."""
+
+    # Costes base de reclutamiento por tipo de tropa
+    # Clave = nombre del TipoRecurso, Valor = dict de {recurso: cantidad_por_unidad}
+    _costes_reclutamiento_base: dict[str, dict[str, int]] = field(default_factory=lambda: {
+        "INFANTERIA": {"COMIDA": 2, "HIERRO": 1},
+        "CABALLERIA": {"COMIDA": 5, "HIERRO": 3, "ORO": 2},
+        "ARQUEROS": {"COMIDA": 2, "MADERA": 3},
+        "LANCEROS": {"COMIDA": 3, "HIERRO": 2, "MADERA": 1},
+        "MAQUINAS_ASALTO": {"MADERA": 10, "HIERRO": 8, "ORO": 5},
+        "OFICIALES": {"COMIDA": 5, "ORO": 10},
+    })
+
 
     _instance: "GameConfig | None" = None
 
@@ -60,6 +74,14 @@ class GameConfig:
     def get_bonus_produccion(self, tipo_recurso_nombre: str) -> int:
         """Devuelve el bonus de producción para un tipo de edificio."""
         return self._bonos_investigacion.get(f"prod_{tipo_recurso_nombre}", 0)
+
+    def get_coste_reclutamiento(self, tipo_tropa_nombre: str) -> dict[str, int] | None:
+        """
+        Devuelve el coste de reclutamiento de un tipo de tropa.
+        Formato: {"COMIDA": 2, "HIERRO": 1} por unidad.
+        None si el tipo no existe.
+        """
+        return self._costes_reclutamiento_base.get(tipo_tropa_nombre)
 
 
 # ==========================================
