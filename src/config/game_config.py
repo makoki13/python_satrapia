@@ -57,6 +57,10 @@ class GameConfig:
         """Devuelve el bonus de capacidad para un tipo de silo."""
         return self._bonos_investigacion.get(f"silo_{tipo_recurso_nombre}", 0)
 
+    def get_bonus_produccion(self, tipo_recurso_nombre: str) -> int:
+        """Devuelve el bonus de producción para un tipo de edificio."""
+        return self._bonos_investigacion.get(f"prod_{tipo_recurso_nombre}", 0)
+
 
 # ==========================================
 # BLOQUE DE PRUEBAS
