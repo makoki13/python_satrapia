@@ -4,23 +4,8 @@ Singleton de configuración global del juego.
 Se actualizará dinámicamente conforme se completen investigaciones.
 """
 
-from dataclasses import field
-
-
 class GameConfig:
     """Configuración global parametrizable y evolutiva."""
-
-    # Costes base de reclutamiento por tipo de tropa
-    # Clave = nombre del TipoRecurso, Valor = dict de {recurso: cantidad_por_unidad}
-    _costes_reclutamiento_base: dict[str, dict[str, int]] = field(default_factory=lambda: {
-        "INFANTERIA": {"COMIDA": 2, "HIERRO": 1},
-        "CABALLERIA": {"COMIDA": 5, "HIERRO": 3, "ORO": 2},
-        "ARQUEROS": {"COMIDA": 2, "MADERA": 3},
-        "LANCEROS": {"COMIDA": 3, "HIERRO": 2, "MADERA": 1},
-        "MAQUINAS_ASALTO": {"MADERA": 10, "HIERRO": 8, "ORO": 5},
-        "OFICIALES": {"COMIDA": 5, "ORO": 10},
-    })
-
 
     _instance: "GameConfig | None" = None
 
@@ -43,6 +28,17 @@ class GameConfig:
         }
         # Bonos acumulativos por investigaciones completadas
         self._bonos_investigacion: dict[str, int] = {}
+
+         # Costes base de reclutamiento por tipo de tropa
+         # Clave = nombre del TipoRecurso, Valor = dict de {recurso: cantidad_por_unidad}
+        self._costes_reclutamiento_base: dict[str, dict[str, int]] = {
+            "INFANTERIA": {"COMIDA": 2, "HIERRO": 1},
+            "CABALLERIA": {"COMIDA": 5, "HIERRO": 3, "ORO": 2},
+            "ARQUEROS": {"COMIDA": 2, "MADERA": 3},
+            "LANCEROS": {"COMIDA": 3, "HIERRO": 2, "MADERA": 1},
+            "MAQUINAS_ASALTO": {"MADERA": 10, "HIERRO": 8, "ORO": 5},
+            "OFICIALES": {"COMIDA": 5, "ORO": 10},
+        }
         self._initialized = True
 
     def get_max_edificios_productivos(self, tipo: str) -> int:
