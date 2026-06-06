@@ -51,6 +51,12 @@ class GameConfig:
         self._bonos_investigacion.clear()
         print("🔄 [CONFIG] Configuración reiniciada a valores base.")
 
+    # Añadir a src/config/game_config.py dentro de la clase GameConfig
+
+    def get_bonus_silo(self, tipo_recurso_nombre: str) -> int:
+        """Devuelve el bonus de capacidad para un tipo de silo."""
+        return self._bonos_investigacion.get(f"silo_{tipo_recurso_nombre}", 0)
+
 
 # ==========================================
 # BLOQUE DE PRUEBAS
