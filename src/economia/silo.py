@@ -16,6 +16,7 @@ class TipoRecurso(Enum):
     PIEDRA = "Piedra"
     HIERRO = "Hierro"
     ORO = "Oro"
+    POBLACION = "Población"
     # Recursos militares (unidades como recurso)
     INFANTERIA = "Infantería"
     CABALLERIA = "Caballería"
@@ -51,8 +52,8 @@ class Silo:
     # VALIDACIONES
     # ==========================================
     def __post_init__(self):
-        if self.capacidad_base <= 0:
-            raise ValueError(f"La capacidad base debe ser > 0. Recibido: {self.capacidad_base}")
+        if self.capacidad_base < -1 or self.capacidad_base == 0:
+            raise ValueError(f"La capacidad base debe ser > 0 o -1 (ilimitado). Recibido: {self.capacidad_base}")
         if self.stock_actual < 0:
             raise ValueError(f"El stock no puede ser negativo. Recibido: {self.stock_actual}")
         if self.stock_actual > self.capacidad_base:
@@ -63,19 +64,29 @@ class Silo:
     # ==========================================
     # CAPACIDAD EFECTIVA (Base + Investigación)
     # ==========================================
-    def get_capacidad_maxima(self, config: GameConfig) -> int:
+    # src/economia/silo.py (modificaciones dentro de la clase Silo)
+
+    def get_capacidad_maxima(self, config: GameConfig | None = None) -> int:
         """
-        Devuelve la capacidad real teniendo en cuenta las investigaciones.
-        Ejemplo: base=100 + bonus 'silos_reforzados'=50 → máxima=150
+        Devuelve la capacidad real.
+        -1 significa capacidad ILIMITADA (ej. tesorería del Palacio).
         """
-        bonus = config.get_bonus_silo(self.tipo_recurso.name)
+        if self.capacidad_base == -1:
+            return -1  # Sin límite
+        bonus = config.get_bonus_silo(self.tipo_recurso.name) if config else 0
         return self.capacidad_base + bonus
 
-    def espacio_disponible(self, config: GameConfig) -> int:
-        """Stock restante antes de llenarse."""
-        return max(0, self.get_capacidad_maxima(config) - self.stock_actual)
+    def espacio_disponible(self, config: GameConfig | None = None) -> int:
+        """Stock restante. -1 = infinito."""
+        maxima = self.get_capacidad_maxima(config)
+        if maxima == -1:
+            return -1  # Siempre hay espacio
+        return max(0, maxima - self.stock_actual)
 
-    def esta_lleno(self, config: GameConfig) -> bool:
+    def esta_lleno(self, config: GameConfig | None = None) -> bool:
+        """Un silo con capacidad -1 NUNCA está lleno."""
+        if self.capacidad_base == -1:
+            return False
         return self.espacio_disponible(config) == 0
 
     def esta_vacio(self) -> bool:
@@ -95,6 +106,11 @@ class Silo:
         """
         if cantidad <= 0:
             return False, 0, "❌ La cantidad debe ser positiva."
+
+        # Capacidad ilimitada: siempre acepta todo
+        if self.capacidad_base == -1:
+            self.stock_actual += cantidad
+            return True, cantidad, f"✅ {cantidad} unidades de {self.tipo_recurso.value} agregadas."
 
         disponible = self.espacio_disponible(config)
         if disponible == 0:
