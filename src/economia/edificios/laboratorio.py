@@ -13,16 +13,17 @@ if TYPE_CHECKING:
 @dataclass
 class InvestigacionEnCurso:
     """Representa una tecnología siendo investigada actualmente."""
+
     tech_id: str
     turnos_restantes: int
     coste_oro_total: int
-    oro_pagado: bool = False  # True si el oro ya fue descontado al iniciar
+    oro_pagado: bool = False
 
 
 @dataclass
 class Laboratorio:
     """
-    Edificio urbano donde se investigan tecnologías.
+    Edificio único del Reino donde se investigan tecnologías.
 
     Gestiona una cola de investigación secuencial.
     Cada tick del servidor avanza la investigación activa.
@@ -32,14 +33,14 @@ class Laboratorio:
     # ==========================================
     # IDENTIDAD
     # ==========================================
-    nombre: str = "Laboratorio"
-    nivel: int = 1  # Nivel del laboratorio (futuro: acelera investigación)
+    nombre: str = "Laboratorio Real"
+    nivel: int = 1  # Futuro: acelera investigación o aumenta cola
 
     # ==========================================
     # ESTADO DE INVESTIGACIÓN
     # ==========================================
     cola: list[InvestigacionEnCurso] = field(default_factory=list)
-    _max_cola: int = 5  # Máximo de investigaciones en cola
+    _max_cola: int = 5
 
     # ==========================================
     # GESTIÓN DE COLA
@@ -55,21 +56,18 @@ class Laboratorio:
         """
         Añade una tecnología a la cola de investigación.
 
-        Valida: prerequisitos, oro disponible, espacio en cola.
+        Valida prerequisitos, oro disponible y espacio en cola.
         Descuenta el oro inmediatamente al aceptar.
         """
-        # Validar espacio en cola
         if len(self.cola) >= self._max_cola:
-            return False, f"❌ Cola llena ({self._max_cola}/{self._max_cola})."
+            return False, f"❌ Cola llena ({len(self.cola)}/{self._max_cola})."
 
-        # Validar que existe y está disponible
         puede, razon = arbol.puede_investigar(tech_id, investigaciones_completadas)
         if not puede:
             return False, razon
 
         tech = arbol.obtener(tech_id)
 
-        # Validar oro suficiente
         oro_actual = palacio.get_oro()
         if oro_actual < tech.coste_oro:
             return False, (
@@ -77,23 +75,23 @@ class Laboratorio:
                 f"Necesitas {tech.coste_oro}, tienes {oro_actual}."
             )
 
-        # Descontar oro inmediatamente
         exito, _, msg_oro = palacio.gastar_oro(tech.coste_oro)
         if not exito:
             return False, f"❌ Error al pagar: {msg_oro}"
 
-        # Añadir a cola
-        self.cola.append(InvestigacionEnCurso(
-            tech_id=tech_id,
-            turnos_restantes=tech.turnos_requeridos,
-            coste_oro_total=tech.coste_oro,
-            oro_pagado=True,
-        ))
+        self.cola.append(
+            InvestigacionEnCurso(
+                tech_id=tech_id,
+                turnos_restantes=tech.turnos_requeridos,
+                coste_oro_total=tech.coste_oro,
+                oro_pagado=True,
+            )
+        )
 
         pos = len(self.cola)
         return True, (
             f"🔬 '{tech.nombre}' añadida a cola (posición {pos}). "
-            f"Coste: {tech.coste_oro} oro | Tiempo: {tech.turnos_requeridos} turnos."
+            f"Coste: {tech.coste_oro} oro | Tiempo: {tech.turnos_requeridos}t."
         )
 
     def cancelar_investigacion(
@@ -112,11 +110,8 @@ class Laboratorio:
 
         item = self.cola.pop(posicion)
 
-        # Reembolsar oro
         if item.oro_pagado:
-            # Usamos config dummy porque recaudar_oro lo necesita pero no usa bonus para oro
-            # En producción, pasar el config real desde el controlador
-            palacio.recaudar_oro(item.coste_oro_total, None)  # type: ignore[arg-type]
+            palacio.recaudar_oro(item.coste_oro_total, config)
 
         tech = arbol.get(item.tech_id)
         nombre = tech.nombre if tech else item.tech_id
@@ -130,9 +125,7 @@ class Laboratorio:
         Avanza la investigación activa un turno.
 
         Returns:
-            (completada, tech_id_completado_o_None)
-            Si completada=True, el ControladorPartida debe aplicar efectos
-            y mover la tech a investigaciones_completadas.
+            (completada, tech_id_o_None)
         """
         if not self.cola:
             return False, None
@@ -141,7 +134,6 @@ class Laboratorio:
         activa.turnos_restantes -= 1
 
         if activa.turnos_restantes <= 0:
-            # Investigación completada
             self.cola.pop(0)
             return True, activa.tech_id
 
@@ -152,7 +144,6 @@ class Laboratorio:
     # ==========================================
     @property
     def investigacion_activa(self) -> InvestigacionEnCurso | None:
-        """Devuelve la investigación en curso (primera de la cola) o None."""
         return self.cola[0] if self.cola else None
 
     @property
@@ -163,23 +154,21 @@ class Laboratorio:
     def espacios_disponibles(self) -> int:
         return max(0, self._max_cola - len(self.cola))
 
-    def resumen(
-        self,
-        arbol: ArbolInvestigaciones,
-        config: GameConfig,
-    ) -> dict:
-        """Resumen completo del laboratorio para la UI / API."""
+    def resumen(self, arbol: ArbolInvestigaciones) -> dict:
+        """Resumen completo del laboratorio para UI / API."""
         items: list[dict] = []
         for i, item in enumerate(self.cola):
             tech = arbol.get(item.tech_id)
-            items.append({
-                "posicion": i,
-                "tech_id": item.tech_id,
-                "nombre": tech.nombre if tech else item.tech_id,
-                "turnos_restantes": item.turnos_restantes,
-                "coste_oro": item.coste_oro_total,
-                "es_activa": i == 0,
-            })
+            items.append(
+                {
+                    "posicion": i,
+                    "tech_id": item.tech_id,
+                    "nombre": tech.nombre if tech else item.tech_id,
+                    "turnos_restantes": item.turnos_restantes,
+                    "coste_oro": item.coste_oro_total,
+                    "es_activa": i == 0,
+                }
+            )
 
         return {
             "nombre": self.nombre,
