@@ -8,9 +8,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.core.partida import Partida
-
     from src.config.game_config import GameConfig
+    from src.gestion.partida import Partida
     from src.investigacion.arbol_investigaciones import ArbolInvestigaciones
 
 # Singletons globales (se asignan en main.py al arrancar)
