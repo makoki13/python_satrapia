@@ -272,8 +272,133 @@ def _crear_registro_parametros() -> dict[str, ParametroJuego]:
             ],
         ),
 
+                # ==========================================
+        # BLOQUE 3: INDUSTRIA
         # ==========================================
-        # PLACEHOLDERS PARA BLOQUES 2-7
+
+        # --- Producción de Productos Procesados ---
+        ParametroJuego.numerico(
+            id="prod_madera_procesada",
+            nombre="Producción de Madera Procesada",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("3.1.1_aserradero", 0.10),
+                ContribucionParametro("3.1.3_talla", 0.10),
+                ContribucionParametro("3.1.5_ensamblaje", 0.10),
+                ContribucionParametro("3.1.7_ebanisteria", 0.15),
+                ContribucionParametro("3.6.2_estandares_calidad", 0.10),
+                ContribucionParametro("3.6.5_division_trabajo", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_piedra_tallada",
+            nombre="Producción de Piedra Tallada",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("3.2.1_corte_piedra", 0.10),
+                ContribucionParametro("3.2.3_pulido", 0.10),
+                ContribucionParametro("3.2.5_escultura", 0.15),
+                ContribucionParametro("3.2.7_arquitectura_monumental", 0.20),
+                ContribucionParametro("3.6.3_geometria_aplicada", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_hierro_forjado",
+            nombre="Producción de Hierro Forjado",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("3.3.1_forja_basica", 0.10),
+                ContribucionParametro("3.3.3_laminado", 0.10),
+                ContribucionParametro("3.3.5_fundicion", 0.15),
+                ContribucionParametro("3.3.7_acero", 0.20),
+                ContribucionParametro("3.6.4_metalurgia_avanzada", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_oro_refinado",
+            nombre="Producción de Oro Refinado",
+            valor_maximo=20.0,
+            porcentaje_inicial=0.10,
+            contribuciones=[
+                ContribucionParametro("3.4.1_fundicion_oro", 0.10),
+                ContribucionParametro("3.4.3_aleaciones", 0.15),
+                ContribucionParametro("3.4.5_filigrana", 0.15),
+                ContribucionParametro("3.4.7_amonedacion", 0.20),
+                ContribucionParametro("3.6.4_metalurgia_avanzada", 0.10),
+            ],
+        ),
+
+        # --- Eficiencia y Calidad ---
+        ParametroJuego.numerico(
+            id="eficiencia_transformacion",
+            nombre="Eficiencia de Transformación Industrial",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("3.1.2_herramientas_carpintero", 0.10),
+                ContribucionParametro("3.2.2_herramientas_cantero", 0.10),
+                ContribucionParametro("3.3.2_yunque_mejorado", 0.10),
+                ContribucionParametro("3.5.2_engranajes", 0.15),
+                ContribucionParametro("3.5.4_molino_viento", 0.15),
+                ContribucionParametro("3.5.6_telar_mecanico", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="reduccion_desperdicio",
+            nombre="Reducción de Desperdicio Industrial",
+            valor_maximo=0.80,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("3.5.1_rueda", 0.05),
+                ContribucionParametro("3.5.3_poleas", 0.10),
+                ContribucionParametro("3.5.5_prensa", 0.15),
+                ContribucionParametro("3.7.3_control_calidad", 0.15),
+                ContribucionParametro("3.7.5_reciclaje_industrial", 0.20),
+                ContribucionParametro("3.7.6_normativa_residuos", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="calidad_producto",
+            nombre="Calidad del Producto Final",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("3.6.1_aprendizaje", 0.10),
+                ContribucionParametro("3.6.2_estandares_calidad", 0.15),
+                ContribucionParametro("3.6.6_maestros_artesanos", 0.15),
+                ContribucionParametro("3.7.3_control_calidad", 0.10),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="herreria_avanzada",
+            nombre="Herrería Avanzada (Acero)",
+            contribuciones=[
+                ContribucionParametro("3.3.7_acero", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="maquinaria_hidraulica",
+            nombre="Maquinaria Hidráulica",
+            contribuciones=[
+                ContribucionParametro("3.5.7_hidraulica", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="gremios_artesanos",
+            nombre="Gremios Artesanos Organizados",
+            contribuciones=[
+                ContribucionParametro("3.6.7_cartas_gremiales", 0.5),
+                ContribucionParametro("3.7.7_legislacion_gremial", 0.5),
+            ],
+        ),
+
+        # ==========================================
+        # PLACEHOLDERS PARA BLOQUES 4-7
         # Se rellenarán tras validar el piloto
         # ==========================================
         # Ejemplo futuro:
