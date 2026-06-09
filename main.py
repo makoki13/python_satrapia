@@ -1,4 +1,6 @@
 # En tu main.py de FastAPI
+from fastapi import FastAPI
+
 from src.api.dependencias import inicializar_dependencias
 from src.api.rutas.juego import router as juego_router
 
