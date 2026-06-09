@@ -36,6 +36,95 @@ class ServerTick:
         self.config = config
         self.arbol = arbol
 
+    def _procesar_disparadores_automaticos(self) -> list[dict]:  # noqa: C901
+        """
+        Fase 1c: Disparadores Automáticos de Transporte.
+        Crea transportes SOLO cuando el silo alcanza el 100% de capacidad.
+        Envía todo el stock disponible (vaciado completo por desbordamiento).
+        """
+        eventos = []
+
+        if self.partida.gestor_transportes is None:
+            return eventos
+
+        for ciudad in self.partida.ciudades:
+            if not hasattr(ciudad, 'almacen') or not ciudad.almacen:
+                continue
+
+            # Contar transportes activos salientes de esta ciudad
+            transportes_salientes = sum(
+                1 for t in self.partida.gestor_transportes._por_id.values()
+                if t.origen == ciudad.ubicacion
+            )
+
+            if transportes_salientes >= self.config.auto_transport_max_active_per_city:
+                continue
+
+                        # ✅ CORREGIDO: Usar API pública en lugar de atributo privado
+            for tipo_recurso, silo in ciudad.almacen.silos_items:
+                capacidad = silo.get_capacidad_maxima(self.config)
+
+                # Umbral 100%: solo actuar cuando está completamente lleno
+                if silo.stock_actual < capacidad:
+                    continue
+
+                cantidad_a_enviar = silo.stock_actual
+
+                if cantidad_a_enviar < self.config.auto_transport_min_amount:
+                    continue
+
+                # Determinar destino (Capital del Reino)
+                reino = ciudad.reino_propietario
+                destino_ciudad = None
+                if reino and reino.capital and reino.capital != ciudad:
+                    destino_ciudad = reino.capital
+
+                if not destino_ciudad:
+                    continue
+
+                try:
+                    # ✅ CORREGIDO: Firma real de crear_transporte
+                    # - mapa va primero
+                    # - tipo explícito como TipoTransporte.RECURSOS
+                    # - devuelve tupla (exito, mensaje, transporte)
+                    exito, msg_creacion, transporte = self.partida.gestor_transportes.crear_transporte(
+                        mapa=self.partida.mapa,
+                        origen=ciudad.ubicacion,
+                        destino=destino_ciudad.ubicacion,
+                        tipo=TipoTransporte.RECURSOS,
+                        tipo_recurso=tipo_recurso,
+                        cantidad=cantidad_a_enviar,
+                        propietario_id=reino.nombre,
+                    )
+
+                    if not exito or transporte is None:
+                        logger.warning(f"No se pudo crear transporte automático desde {ciudad.nombre}: {msg_creacion}")
+                        continue
+
+                    # Retirar TODO el stock inmediatamente
+                    exito_retiro, _, msg_retiro = ciudad.almacen.retirar_recurso(
+                        tipo_recurso, cantidad_a_enviar
+                    )
+
+                    if exito_retiro:
+                        eventos.append({
+                            "tipo": "transporte_automatico_creado",
+                            "origen": ciudad.nombre,
+                            "destino": destino_ciudad.nombre,
+                            "recurso": tipo_recurso.value,
+                            "cantidad": cantidad_a_enviar,
+                            "transporte_id": transporte.id
+                        })
+                    else:
+                        # Error crítico: transporte creado pero recurso no retirado
+                        logger.error(f"Inconsistencia logística en {ciudad.nombre}: {msg_retiro}")
+                        self.partida.gestor_transportes.eliminar(transporte.id)
+
+                except Exception as e:
+                    logger.warning(f"Error inesperado en transporte automático desde {ciudad.nombre}: {e}")
+
+        return eventos
+
     async def ejecutar(self) -> dict:  # noqa: C901
         """
         Ejecuta un tick completo del servidor.
@@ -44,6 +133,7 @@ class ServerTick:
             Resumen del tick con eventos generados (para broadcast WS).
         """
         eventos: list[dict] = []
+        todos_eventos = []
 
         logger.debug(f"⏱️ Iniciando tick {self.partida.turno_actual + 1}")
 
@@ -125,6 +215,10 @@ class ServerTick:
 
                 # Eliminar transporte tras procesamiento
                 self.partida.gestor_transportes.eliminar(t.id)
+
+        # --- FASE 2a: DISPARADORES AUTOMÁTICOS (NUEVO) ---
+        eventos_auto = self._procesar_disparadores_automaticos()
+        todos_eventos.extend(eventos_auto)
 
         # ==========================================
         # FASE 3: INVESTIGACIÓN (Por reino)

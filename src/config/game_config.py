@@ -90,6 +90,14 @@ class GameConfig:
     def total_parametros(self) -> int:
         return len(REGISTRO_PARAMETROS)
 
+    # ==========================================
+    # LOGÍSTICA AUTOMÁTICA
+    # ==========================================
+    auto_transport_threshold_percent: float = 0.80  # Activar al 80% de capacidad
+    auto_transport_min_amount: int = 50             # Mínimo recurso por envío
+    auto_transport_max_active_per_city: int = 3     # Máx. transportes salientes simultáneos
+    auto_transport_priority_gold: bool = True       # Priorizar oro sobre otros recursos
+
 
 # ==========================================
 # BLOQUE DE PRUEBAS

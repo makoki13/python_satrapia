@@ -127,6 +127,14 @@ class Almacen:
             }
         return resumen
 
+    @property
+    def silos_items(self) -> list[tuple[TipoRecurso, Silo]]:
+        """
+        Devuelve lista de tuplas (tipo_recurso, silo) para iteración externa.
+        Útil para disparadores automáticos y análisis logístico.
+        """
+        return list(self._silos.items())
+
     # ==========================================
     # REPRESENTACIÓN
     # ==========================================

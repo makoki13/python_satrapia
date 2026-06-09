@@ -521,18 +521,390 @@ def _crear_registro_parametros() -> dict[str, ParametroJuego]:
             ],
         ),
 
+                # ==========================================
+        # BLOQUE 5: COMERCIO
         # ==========================================
-        # PLACEHOLDERS PARA BLOQUES 5-7
-        # Se rellenarán tras validar el piloto
+
+        # --- Eficiencia y Volumen ---
+        ParametroJuego.numerico(
+            id="eficiencia_comercial",
+            nombre="Eficiencia Comercial",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("5.1.1_trueque", 0.10),
+                ContribucionParametro("5.1.3_mercado_local", 0.10),
+                ContribucionParametro("5.1.5_feria_regional", 0.15),
+                ContribucionParametro("5.1.7_bolsa_mercantil", 0.20),
+                ContribucionParametro("5.6.2_contabilidad_doble", 0.10),
+                ContribucionParametro("5.6.4_letra_cambio", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="capacidad_caravanas",
+            nombre="Capacidad de Caravanas",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("5.2.1_senderos", 0.10),
+                ContribucionParametro("5.2.3_posadas", 0.10),
+                ContribucionParametro("5.2.5_caravasar", 0.15),
+                ContribucionParametro("5.2.7_ruta_seda", 0.20),
+                ContribucionParametro("5.5.2_almacenes_transito", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="volumen_maritimo",
+            nombre="Volumen de Comercio Marítimo",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("5.3.1_puerto_fluvial", 0.10),
+                ContribucionParametro("5.3.3_faro", 0.10),
+                ContribucionParametro("5.3.5_astillero_comercial", 0.15),
+                ContribucionParametro("5.3.7_arsenal_naval_mercante", 0.20),
+                ContribucionParametro("5.5.4_seguros_maritimos", 0.10),
+            ],
+        ),
+
+        # --- Ingresos y Velocidad ---
+        ParametroJuego.numerico(
+            id="ingresos_aduanas",
+            nombre="Ingresos por Aduanas",
+            valor_maximo=20.0,
+            porcentaje_inicial=0.10,
+            contribuciones=[
+                ContribucionParametro("5.4.1_peaje", 0.10),
+                ContribucionParametro("5.4.3_aranceles", 0.15),
+                ContribucionParametro("5.4.5_zona_libre", 0.10),
+                ContribucionParametro("5.4.7_tratado_comercial", 0.20),
+                ContribucionParametro("5.6.1_registro_mercantil", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="velocidad_transaccion",
+            nombre="Velocidad de Transacción",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("5.1.2_pesas_medidas", 0.15),
+                ContribucionParametro("5.1.4_moneda_local", 0.15),
+                ContribucionParametro("5.6.3_banca_deposito", 0.15),
+                ContribucionParametro("5.6.5_giro_bancario", 0.15),
+                ContribucionParametro("5.7.3_acuerdos_bilaterales", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="reduccion_costes_ruta",
+            nombre="Reducción de Costes de Ruta",
+            valor_maximo=0.70,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("5.2.2_caminos_empedrados", 0.10),
+                ContribucionParametro("5.2.4_escorts", 0.10),
+                ContribucionParametro("5.3.2_muelle", 0.10),
+                ContribucionParametro("5.3.4_darsena", 0.10),
+                ContribucionParametro("5.5.3_logistica_integrada", 0.15),
+                ContribucionParametro("5.5.5_red_comercial", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prestamo_comercial",
+            nombre="Capacidad de Préstamo Comercial",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("5.6.3_banca_deposito", 0.15),
+                ContribucionParametro("5.6.5_giro_bancario", 0.15),
+                ContribucionParametro("5.6.6_credito_documentario", 0.20),
+                ContribucionParametro("5.7.5_diplomacia_economica", 0.15),
+                ContribucionParametro("5.7.6_union_aduanera", 0.15),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="moneda_unificada",
+            nombre="Moneda Unificada del Reino",
+            contribuciones=[
+                ContribucionParametro("5.6.7_banca_internacional", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="gremio_mercaderes",
+            nombre="Gremio de Mercaderes Organizado",
+            contribuciones=[
+                ContribucionParametro("5.1.7_bolsa_mercantil", 0.5),
+                ContribucionParametro("5.7.7_carta_comercial", 0.5),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="banca_internacional",
+            nombre="Banca Internacional",
+            contribuciones=[
+                ContribucionParametro("5.6.7_banca_internacional", 0.5),
+                ContribucionParametro("5.7.7_carta_comercial", 0.5),
+            ],
+        ),
+
+                # ==========================================
+        # BLOQUE 6: CULTURA Y EDUCACIÓN
         # ==========================================
-        # Ejemplo futuro:
-        # ParametroJuego.numerico(
-        #     id="prod_madera_serreria",
-        #     nombre="Producción de Madera (Serrería)",
-        #     valor_maximo=40.0,
-        #     porcentaje_inicial=0.30,
-        #     contribuciones=[],
-        # ),
+
+        # --- Estabilidad y Felicidad ---
+        ParametroJuego.numerico(
+            id="estabilidad_social",
+            nombre="Estabilidad Social",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("6.1.1_escuela_escribas", 0.10),
+                ContribucionParametro("6.1.3_biblioteca", 0.10),
+                ContribucionParametro("6.4.2_templo_local", 0.10),
+                ContribucionParametro("6.4.5_festivales_religiosos", 0.15),
+                ContribucionParametro("6.4.7_tolerancia_religiosa", 0.20),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="felicidad_poblacion",
+            nombre="Felicidad de la Población",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("6.5.1_juegos_publicos", 0.10),
+                ContribucionParametro("6.5.3_termas", 0.10),
+                ContribucionParametro("6.5.5_anfiteatro", 0.15),
+                ContribucionParametro("6.5.7_gran_coliseo", 0.20),
+                ContribucionParametro("6.4.3_peregrinaciones", 0.10),
+            ],
+        ),
+
+        # --- Prestigio e Influencia ---
+        ParametroJuego.numerico(
+            id="prestigio_cultural",
+            nombre="Prestigio Cultural",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("6.2.1_ceramica_artistica", 0.10),
+                ContribucionParametro("6.2.3_pintura", 0.10),
+                ContribucionParametro("6.2.5_musica", 0.15),
+                ContribucionParametro("6.2.7_mecenazgo", 0.20),
+                ContribucionParametro("6.3.3_epopeya", 0.10),
+                ContribucionParametro("6.3.5_historiografia", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="influencia_diplomatica",
+            nombre="Influencia Diplomática Cultural",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("6.3.1_tradicion_oral", 0.10),
+                ContribucionParametro("6.3.4_drama", 0.10),
+                ContribucionParametro("6.3.7_enciclopedia", 0.20),
+                ContribucionParametro("6.6.3_monumento", 0.10),
+                ContribucionParametro("6.6.5_palacio_cultural", 0.15),
+            ],
+        ),
+
+        # --- Investigación y Educación ---
+        ParametroJuego.numerico(
+            id="eficiencia_investigacion",
+            nombre="Eficiencia de Investigación",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("6.1.2_alfabetizacion", 0.10),
+                ContribucionParametro("6.1.4_academia", 0.15),
+                ContribucionParametro("6.1.6_observatorio", 0.15),
+                ContribucionParametro("6.1.7_universidad", 0.20),
+                ContribucionParametro("6.7.3_logica", 0.10),
+                ContribucionParametro("6.7.5_ciencia_natural", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="calidad_educativa",
+            nombre="Calidad Educativa",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("6.1.5_liceo", 0.15),
+                ContribucionParametro("6.1.7_universidad", 0.20),
+                ContribucionParametro("6.7.2_etica", 0.10),
+                ContribucionParametro("6.7.6_humanismo", 0.15),
+                ContribucionParametro("6.7.7_ilustracion", 0.20),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="reduccion_revueltas",
+            nombre="Reducción de Revueltas",
+            valor_maximo=0.80,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("6.4.1_santuario", 0.10),
+                ContribucionParametro("6.4.4_clero_organizado", 0.15),
+                ContribucionParametro("6.5.2_circos", 0.10),
+                ContribucionParametro("6.5.4_fiestas_populares", 0.15),
+                ContribucionParametro("6.5.6_teatro_publico", 0.15),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="universidad",
+            nombre="Universidad",
+            contribuciones=[
+                ContribucionParametro("6.1.7_universidad", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="maravilla_cultural",
+            nombre="Maravilla Cultural",
+            contribuciones=[
+                ContribucionParametro("6.6.7_maravilla_mundo", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="renacimiento",
+            nombre="Renacimiento Cultural",
+            contribuciones=[
+                ContribucionParametro("6.2.7_mecenazgo", 0.5),
+                ContribucionParametro("6.7.7_ilustracion", 0.5),
+            ],
+        ),
+
+                # ==========================================
+        # BLOQUE 7: CIENCIA Y TECNOLOGÍA AVANZADA
+        # ==========================================
+
+        # --- Velocidad y Producción de Conocimiento ---
+        ParametroJuego.numerico(
+            id="velocidad_cientifica",
+            nombre="Velocidad de Investigación Científica",
+            valor_maximo=3.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("7.1.1_empirismo", 0.10),
+                ContribucionParametro("7.1.3_hipotesis", 0.10),
+                ContribucionParametro("7.1.5_replicabilidad", 0.15),
+                ContribucionParametro("7.1.7_metodo_cientifico", 0.25),
+                ContribucionParametro("7.6.3_laboratorio_nacional", 0.15),
+                ContribucionParametro("7.6.5_academia_ciencias", 0.20),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="produccion_conocimiento",
+            nombre="Producción de Conocimiento Científico",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("7.1.2_experimentacion", 0.10),
+                ContribucionParametro("7.1.4_verificacion", 0.10),
+                ContribucionParametro("7.1.6_revision_pares", 0.15),
+                ContribucionParametro("7.6.4_red_investigadores", 0.15),
+                ContribucionParametro("7.7.3_revista_cientifica", 0.15),
+                ContribucionParametro("7.7.7_enciclopedia_ciencias", 0.20),
+            ],
+        ),
+
+        # --- Precisión e Innovación ---
+        ParametroJuego.numerico(
+            id="precision_medicion",
+            nombre="Precisión de Medición Científica",
+            valor_maximo=2.5,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("7.2.1_aritmetica_avanzada", 0.10),
+                ContribucionParametro("7.2.3_geometria_analitica", 0.10),
+                ContribucionParametro("7.2.5_probabilidad", 0.15),
+                ContribucionParametro("7.2.7_matematica_aplicada", 0.20),
+                ContribucionParametro("7.3.2_telescopio", 0.10),
+                ContribucionParametro("7.3.4_cartografia_celeste", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="innovacion_tecnologica",
+            nombre="Innovación Tecnológica Aplicada",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("7.2.2_algebra", 0.10),
+                ContribucionParametro("7.2.4_calculo", 0.15),
+                ContribucionParametro("7.2.6_estadistica", 0.15),
+                ContribucionParametro("7.5.3_genetica", 0.15),
+                ContribucionParametro("7.5.5_microbiologia", 0.15),
+                ContribucionParametro("7.6.6_fondos_investigacion", 0.20),
+            ],
+        ),
+
+        # --- Salud y Colaboración ---
+        ParametroJuego.numerico(
+            id="eficiencia_medica",
+            nombre="Eficiencia Médica",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("7.4.1_anatomia", 0.10),
+                ContribucionParametro("7.4.3_farmacologia", 0.10),
+                ContribucionParametro("7.4.5_higiene_publica", 0.15),
+                ContribucionParametro("7.4.7_hospital_moderno", 0.25),
+                ContribucionParametro("7.5.2_fisiologia", 0.10),
+                ContribucionParametro("7.5.4_epidemiologia", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="reduccion_mortalidad",
+            nombre="Reducción de Mortalidad",
+            valor_maximo=0.60,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("7.4.2_cirugia", 0.10),
+                ContribucionParametro("7.4.4_vacunacion", 0.15),
+                ContribucionParametro("7.4.6_saneamiento", 0.15),
+                ContribucionParametro("7.5.1_taxonomia", 0.05),
+                ContribucionParametro("7.5.6_bioquimica", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="colaboracion_cientifica",
+            nombre="Colaboración Científica Internacional",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("7.6.1_correspondencia", 0.10),
+                ContribucionParametro("7.6.2_congresos", 0.15),
+                ContribucionParametro("7.6.4_red_investigadores", 0.15),
+                ContribucionParametro("7.7.1_traduccion_cientifica", 0.10),
+                ContribucionParametro("7.7.5_biblioteca_universal", 0.20),
+                ContribucionParametro("7.7.6_indice_abstracts", 0.15),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="metodo_cientifico",
+            nombre="Método Científico Formal",
+            contribuciones=[
+                ContribucionParametro("7.1.7_metodo_cientifico", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="revolucion_cientifica",
+            nombre="Revolución Científica",
+            contribuciones=[
+                ContribucionParametro("7.1.7_metodo_cientifico", 0.5),
+                ContribucionParametro("7.6.7_sociedad_real", 0.5),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="sociedad_real_ciencias",
+            nombre="Sociedad Real de Ciencias",
+            contribuciones=[
+                ContribucionParametro("7.6.7_sociedad_real", 0.5),
+                ContribucionParametro("7.7.7_enciclopedia_ciencias", 0.5),
+            ],
+        ),
     ]
 
     # Validar unicidad de IDs
