@@ -78,11 +78,11 @@ class ServerTick:
         # ==========================================
         # FASE 2: LOGÍSTICA (Global)
         # ==========================================
-        if hasattr(self.partida, 'gestor_transportes'):
+        if self.partida.gestor_transportes is not None:
             llegadas = self.partida.gestor_transportes.avanzar_todos(self.partida.mapa)
 
             for evento_llegada in llegadas:
-                t = evento_llegada.transport
+                t = evento_llegada.transporte
 
                 # Procesar transferencia según tipo de transporte
                 if t.tipo == TipoTransporte.RECURSOS and t.tipo_recurso:
@@ -130,7 +130,7 @@ class ServerTick:
         # FASE 3: INVESTIGACIÓN (Por reino)
         # ==========================================
         for reino in self.partida.reinos:
-            if reino.tiene_laboratorio() and reino.laboratorio.esta_investigando:
+            if reino.laboratorio is not None and reino.laboratorio.esta_investigando:
                 completada, tech_id = reino.laboratorio.avanzar_tick()
 
                 if completada and tech_id:

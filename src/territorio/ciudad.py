@@ -5,10 +5,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from src.core.coordenada import Coordenada
+from src.economia.almacen import Almacen  # ← AÑADIR ESTE IMPORT
 
 # Import solo para type hints, evita importación circular
 if TYPE_CHECKING:
     from src.config.game_config import GameConfig
+    from src.economia.edificios.cuartel import Cuartel
+    from src.economia.edificios.palacio import Palacio
     from src.territorio.reino import Reino
 
 
@@ -27,13 +30,27 @@ class Ciudad:
     # ==========================================
     nombre: str
     ubicacion: Coordenada
-    reino_propietario: Reino       # Referencia al Reino dueño de esta ciudad
+    reino_propietario: Reino  # Referencia al Reino dueño de esta ciudad
+
+    # ==========================================
+    # ALMACÉN CENTRAL DE LA CIUDAD
+    # ==========================================
+    almacen: Almacen = field(default_factory=lambda: Almacen(nombre="Almacén Central"))
+
+    # ==========================================
+    # EDIFICIOS URBANOS (Objetos operativos)
+    # ==========================================
+    # Los booleans indican si el edificio está construido.
+    # Los objetos contienen la lógica (producción, reclutamiento, etc.)
+    # Son None hasta que se construye el edificio.
+    palacio: Palacio | None = None
+    cuartel: Cuartel | None = None
 
     # ==========================================
     # SEDES DE GOBIERNO (Pueden coexistir)
     # ==========================================
-    tiene_palacio: bool = False    # Solo 1 por imperio (capital imperial)
-    tiene_castillo: bool = False   # 1 por reino vasallo (o capital imperial)
+    tiene_palacio: bool = False  # Solo 1 por imperio (capital imperial)
+    tiene_castillo: bool = False  # 1 por reino vasallo (o capital imperial)
 
     # Estado dinámico: ¿Está el Emperador alojado aquí actualmente?
     emperador_alojado: bool = False
@@ -43,8 +60,6 @@ class Ciudad:
     # ==========================================
     mercado: bool = False
     taberna: bool = False
-    laboratorio: bool = False
-    cuartel: bool = False
     embajada: bool = False
 
     # ==========================================
@@ -69,7 +84,25 @@ class Ciudad:
     # ==========================================
     # GESTIÓN DE EDIFICIOS PRODUCTIVOS
     # ==========================================
-    def puede_construir(self, tipo_edificio: str, config: GameConfig) -> tuple[bool, str]:
+    # ==========================================
+    # GESTIÓN DE EDIFICIOS PRODUCTIVOS
+    # ==========================================
+    def obtener_edificios_productivos(self) -> list[Any]:
+        """
+        Devuelve una lista plana con TODOS los edificios productivos de la ciudad.
+        Útil para que el ServerTick itere sobre todos sin conocer los tipos internos.
+        """
+        return (
+            self.granjas
+            + self.serrerias
+            + self.canteras
+            + self.minas_hierro
+            + self.minas_oro
+        )
+
+    def puede_construir(
+        self, tipo_edificio: str, config: GameConfig
+    ) -> tuple[bool, str]:
         """
         Verifica si se puede construir un nuevo edificio productivo.
         Consulta el límite actualizado desde el singleton de configuración.
@@ -122,12 +155,19 @@ class Ciudad:
         return self.tiene_castillo and not self.tiene_palacio
 
     def total_edificios_productivos(self) -> int:
-        return (len(self.granjas) + len(self.serrerias) +
-                len(self.canteras) + len(self.minas_hierro) +
-                len(self.minas_oro))
+        return (
+            len(self.granjas)
+            + len(self.serrerias)
+            + len(self.canteras)
+            + len(self.minas_hierro)
+            + len(self.minas_oro)
+        )
 
     def __str__(self) -> str:
-        tipo = "Capital Imperial" if self.tiene_palacio else \
-               "Capital Vasalla" if self.tiene_castillo else "Villa"
+        tipo = (
+            "Capital Imperial"
+            if self.tiene_palacio
+            else "Capital Vasalla" if self.tiene_castillo else "Villa"
+        )
         huesped = " 👑" if self.emperador_alojado else ""
         return f"🏙️ {self.nombre} ({tipo}{huesped}) en {self.ubicacion}"

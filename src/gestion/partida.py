@@ -1,13 +1,23 @@
 # src/gestion/partida.py
+from __future__ import annotations
+
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from src.territorio.mapa import Mapa
 
+if TYPE_CHECKING:
+    from src.logistica.gestor_transportes import GestorTransportes
+    from src.territorio.ciudad import Ciudad
+    from src.territorio.reino import Reino
 
+
+# ==========================================
+# ENUMS Y CONFIGURACIÓN (Deben ir ANTES de Partida)
+# ==========================================
 class EstadoPartida(Enum):
     """Estados posibles del ciclo de vida de una partida."""
     LOBBY = auto()      # Esperando jugadores
@@ -31,16 +41,19 @@ class ConfiguracionMapa:
     max_y: int = field(default=MAX_Y)
 
     @classmethod
-    def modo_desarrollo(cls) -> 'ConfiguracionMapa':
+    def modo_desarrollo(cls) -> ConfiguracionMapa:
         """Crea una configuración con tamaño reducido para pruebas rápidas."""
         return cls(max_x=cls.DEBUG_X, max_y=cls.DEBUG_Y)
 
     @classmethod
-    def modo_produccion(cls) -> 'ConfiguracionMapa':
+    def modo_produccion(cls) -> ConfiguracionMapa:
         """Crea una configuración con tamaño completo del juego."""
         return cls(max_x=cls.MAX_X, max_y=cls.MAX_Y)
 
 
+# ==========================================
+# CLASE PARTIDA
+# ==========================================
 @dataclass
 class Partida:
     """
@@ -69,9 +82,16 @@ class Partida:
     fecha_inicio: datetime | None = None
     fecha_cierre: datetime | None = None
 
-    # Colecciones
+    # Colecciones de sesión
     jugadores: list = field(default_factory=list)  # Lista de objetos Jugador
     mapa: Mapa = field(init=False)  # Siempre existirá, se crea en __post_init__
+
+    # ==========================================
+    # ENTIDADES DE JUEGO (Se inicializan al iniciar partida)
+    # ==========================================
+    reinos: list[Reino] = field(default_factory=list)
+    ciudades: list[Ciudad] = field(default_factory=list)
+    gestor_transportes: GestorTransportes | None = None
 
     # ==========================================
     # INICIALIZACIÓN
@@ -83,25 +103,31 @@ class Partida:
 
     def _inicializar_mapa(self) -> None:
         """Crea el mapa con las dimensiones configuradas."""
-        # Detectamos si es modo desarrollo por el tamaño
         es_desarrollo = (self.configuracion_mapa.max_x < 500)
-
         self.mapa = Mapa(
             nombre=f"Mapa - {self.nombre}",
             modo_desarrollo=es_desarrollo
         )
-        # Forzamos los límites exactos de la configuración
         self.mapa.limite_x = self.configuracion_mapa.max_x
         self.mapa.limite_y = self.configuracion_mapa.max_y
+
+    def _inicializar_entidades_juego(self) -> None:
+        """
+        Crea las entidades necesarias para el Server Tick.
+        Debe llamarse desde iniciar_partida() tras validar jugadores.
+        """
+        from src.logistica.gestor_transportes import GestorTransportes
+
+        if self.gestor_transportes is None:
+            self.gestor_transportes = GestorTransportes()
+
+        # Futuro: crear reinos a partir de jugadores, asignar capitales, etc.
 
     # ==========================================
     # GESTIÓN DE JUGADORES
     # ==========================================
     def añadir_jugador(self, jugador) -> bool:
-        """
-        Añade un jugador a la partida.
-        Solo se puede hacer mientras la partida está en LOBBY.
-        """
+        """Añade un jugador a la partida. Solo en LOBBY."""
         if self.estado != EstadoPartida.LOBBY:
             print(f"⚠️ No se pueden añadir jugadores. Estado actual: {self.estado.name}")
             return False
@@ -132,7 +158,7 @@ class Partida:
     def iniciar_partida(self) -> bool:
         """
         Transiciona la partida de LOBBY a EN_CURSO.
-        Requiere al menos 2 jugadores para empezar.
+        Requiere al menos 2 jugadores. Inicializa entidades de juego.
         """
         if self.estado != EstadoPartida.LOBBY:
             print(f"⚠️ La partida no está en LOBBY. Estado: {self.estado.name}")
@@ -145,6 +171,10 @@ class Partida:
         self.estado = EstadoPartida.EN_CURSO
         self.fecha_inicio = datetime.now()
         self.turno_actual = 1
+
+        # ✅ Inicializar entidades de juego
+        self._inicializar_entidades_juego()
+
         print(f"🎮 ¡La partida '{self.nombre}' ha comenzado!")
         return True
 
@@ -167,6 +197,16 @@ class Partida:
         self.estado = EstadoPartida.CANCELADA
         self.fecha_cierre = datetime.now()
         print(f"❌ Partida '{self.nombre}' cancelada. Motivo: {motivo}")
+
+    # ==========================================
+    # CONSULTAS PARA SERVER TICK
+    # ==========================================
+    def obtener_ciudad_en(self, coord) -> Ciudad | None:
+        """Busca una ciudad por su ubicación en el mapa."""
+        for ciudad in self.ciudades:
+            if hasattr(ciudad, 'ubicacion') and ciudad.ubicacion == coord:
+                return ciudad
+        return None
 
     # ==========================================
     # INFORMACIÓN
@@ -218,33 +258,32 @@ if __name__ == "__main__":
     # 3. Ciclo de vida completo
     print("\n=== Probando ciclo de vida ===")
 
-    # Simular jugadores (usamos strings por ahora)
     jugador1 = "Jugador_A"
     jugador2 = "Jugador_B"
     jugador3 = "Jugador_C"
 
-    # Intentar empezar sin jugadores
     print("\nIntentando iniciar sin jugadores suficientes:")
     partida_dev.añadir_jugador(jugador1)
     partida_dev.iniciar_partida()  # Debería fallar
 
-    # Añadir más jugadores
     print("\nAñadiendo jugadores:")
     partida_dev.añadir_jugador(jugador2)
     partida_dev.añadir_jugador(jugador3)
 
-    # Intentar añadir cuando ya está en curso
     print("\nIniciando partida:")
     partida_dev.iniciar_partida()
     partida_dev.añadir_jugador("Jugador_Tardío")  # Debería fallar
 
-    # Avanzar turnos (simulación)
+    # Verificar que las entidades de juego se inicializaron
+    print(f"\n✅ Gestor de transportes creado: {partida_dev.gestor_transportes is not None}")
+    print(f"✅ Reinos inicializados: {len(partida_dev.reinos)}")
+    print(f"✅ Ciudades inicializadas: {len(partida_dev.ciudades)}")
+
     print("\nSimulando avance de turnos:")
     for i in range(2, 6):
         partida_dev.turno_actual = i
         print(f"   Turno {partida_dev.turno_actual}")
 
-    # Finalizar
     print("\nFinalizando partida:")
     partida_dev.finalizar_partida("Victoria del Emperador")
     print(f"   Duración: {partida_dev.get_duracion()}")
@@ -256,4 +295,4 @@ if __name__ == "__main__":
     partida_cancel.cancelar_partida("El creador se desconectó")
     print(f"   {partida_cancel}")
 
-    print("\n--- Fin de las pruebas ---")
+    print("\n--- ✅ Fin de las pruebas ---")

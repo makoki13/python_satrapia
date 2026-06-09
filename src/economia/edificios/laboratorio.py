@@ -114,7 +114,6 @@ class Laboratorio:
 
         # Reembolsar oro
         if item.oro_pagado:
-            from src.config.game_config import GameConfig
             # Usamos config dummy porque recaudar_oro lo necesita pero no usa bonus para oro
             # En producción, pasar el config real desde el controlador
             palacio.recaudar_oro(item.coste_oro_total, None)  # type: ignore[arg-type]
