@@ -397,8 +397,132 @@ def _crear_registro_parametros() -> dict[str, ParametroJuego]:
             ],
         ),
 
+                # ==========================================
+        # BLOQUE 4: EJÉRCITO
         # ==========================================
-        # PLACEHOLDERS PARA BLOQUES 4-7
+
+        # --- Fuerza por tipo de unidad ---
+        ParametroJuego.numerico(
+            id="fuerza_infanteria",
+            nombre="Fuerza de Infantería",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("4.1.1_lanceros", 0.10),
+                ContribucionParametro("4.1.3_escudos", 0.10),
+                ContribucionParametro("4.1.5_hoplitas", 0.15),
+                ContribucionParametro("4.1.7_legion", 0.20),
+                ContribucionParametro("4.6.1_formaciones", 0.10),
+                ContribucionParametro("4.6.4_disciplina", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="fuerza_caballeria",
+            nombre="Fuerza de Caballería",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("4.2.1_jinetes_ligeros", 0.10),
+                ContribucionParametro("4.2.3_carro_guerra", 0.10),
+                ContribucionParametro("4.2.5_catafractos", 0.15),
+                ContribucionParametro("4.2.7_caballeria_pesada", 0.20),
+                ContribucionParametro("4.6.2_flanqueo", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="fuerza_asedio",
+            nombre="Fuerza de Asedio",
+            valor_maximo=20.0,
+            porcentaje_inicial=0.10,
+            contribuciones=[
+                ContribucionParametro("4.3.1_escalas", 0.05),
+                ContribucionParametro("4.3.2_ariete", 0.10),
+                ContribucionParametro("4.3.3_torre_asedio", 0.10),
+                ContribucionParametro("4.3.5_catapulta", 0.15),
+                ContribucionParametro("4.3.7_trabuquete", 0.20),
+                ContribucionParametro("4.7.5_baluarte", 0.10),
+            ],
+        ),
+
+        # --- Eficiencia y Moral ---
+        ParametroJuego.numerico(
+            id="moral_tropa",
+            nombre="Moral de Tropa",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("4.4.1_suministros", 0.10),
+                ContribucionParametro("4.4.3_campamentos", 0.10),
+                ContribucionParametro("4.4.5_hospitales", 0.15),
+                ContribucionParametro("4.6.4_disciplina", 0.15),
+                ContribucionParametro("4.6.6_oficiales", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="velocidad_marcha",
+            nombre="Velocidad de Marcha",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("4.4.2_caminos_militares", 0.15),
+                ContribucionParametro("4.4.4_logistica_caravanas", 0.15),
+                ContribucionParametro("4.5.1_exploradores", 0.10),
+                ContribucionParametro("4.5.3_cartografia_militar", 0.10),
+                ContribucionParametro("4.5.5_telegrafo_optico", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="capacidad_reclutamiento",
+            nombre="Capacidad de Reclutamiento por Turno",
+            valor_maximo=50.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("4.4.6_cuartel_general", 0.20),
+                ContribucionParametro("4.4.7_academia_militar", 0.20),
+                ContribucionParametro("4.7.3_barbacana", 0.10),
+                ContribucionParametro("4.7.6_ciudadela", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="reduccion_bajas",
+            nombre="Reducción de Bajas en Combate",
+            valor_maximo=0.70,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("4.5.2_vanguardia", 0.10),
+                ContribucionParametro("4.5.4_emboscada_defensiva", 0.15),
+                ContribucionParametro("4.6.3_retirada_ordenada", 0.15),
+                ContribucionParametro("4.6.5_terreno_favorable", 0.15),
+                ContribucionParametro("4.7.4_castillo_concentrico", 0.15),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="caballeria_pesada",
+            nombre="Caballería Pesada",
+            contribuciones=[
+                ContribucionParametro("4.2.7_caballeria_pesada", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="maquinas_asedio_avanzadas",
+            nombre="Máquinas de Asedio Avanzadas",
+            contribuciones=[
+                ContribucionParametro("4.3.7_trabuquete", 1.0),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="doctrina_militar",
+            nombre="Doctrina Militar Unificada",
+            contribuciones=[
+                ContribucionParametro("4.6.7_codigo_guerra", 0.5),
+                ContribucionParametro("4.7.7_fortaleza_estrellada", 0.5),
+            ],
+        ),
+
+        # ==========================================
+        # PLACEHOLDERS PARA BLOQUES 5-7
         # Se rellenarán tras validar el piloto
         # ==========================================
         # Ejemplo futuro:
