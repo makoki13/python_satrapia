@@ -133,6 +133,146 @@ def _crear_registro_parametros() -> dict[str, ParametroJuego]:
         ),
 
         # ==========================================
+        # BLOQUE 2: EXTRACCIÓN
+        # ==========================================
+
+        # --- Producción de Recursos ---
+        ParametroJuego.numerico(
+            id="prod_madera_serreria",
+            nombre="Producción de Madera (Serrería)",
+            valor_maximo=40.0,
+            porcentaje_inicial=0.30,
+            contribuciones=[
+                ContribucionParametro("2.1.1_talado", 0.10),
+                ContribucionParametro("2.1.2_podado", 0.05),
+                ContribucionParametro("2.1.4_saca", 0.10),
+                ContribucionParametro("2.1.6_cable", 0.15),
+                ContribucionParametro("2.1.7_tala_selectiva", 0.10),
+                ContribucionParametro("2.6.2_dendrometria", 0.10),
+                ContribucionParametro("2.6.4_inventario_forestal", 0.10),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_piedra_cantera",
+            nombre="Producción de Piedra (Cantera)",
+            valor_maximo=35.0,
+            porcentaje_inicial=0.25,
+            contribuciones=[
+                ContribucionParametro("2.2.2_cielo_abierto", 0.10),
+                ContribucionParametro("2.2.3_canteras", 0.15),
+                ContribucionParametro("2.2.4_pozos", 0.10),
+                ContribucionParametro("2.3.2_perforadoras", 0.10),
+                ContribucionParametro("2.7.3_mineralogia", 0.10),
+                ContribucionParametro("2.7.6_perforacion_profunda", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_hierro_mina",
+            nombre="Producción de Hierro (Mina)",
+            valor_maximo=30.0,
+            porcentaje_inicial=0.20,
+            contribuciones=[
+                ContribucionParametro("2.2.1_busqueda_vetas", 0.10),
+                ContribucionParametro("2.2.5_hundimiento", 0.15),
+                ContribucionParametro("2.3.1_picos_palas", 0.10),
+                ContribucionParametro("2.3.3_brocas", 0.10),
+                ContribucionParametro("2.7.2_cartografia", 0.10),
+                ContribucionParametro("2.7.7_calculo_reservas", 0.15),
+            ],
+        ),
+        ParametroJuego.numerico(
+            id="prod_oro_mina",
+            nombre="Producción de Oro (Mina)",
+            valor_maximo=25.0,
+            porcentaje_inicial=0.15,
+            contribuciones=[
+                ContribucionParametro("2.2.1_busqueda_vetas", 0.05),
+                ContribucionParametro("2.2.6_lixiviacion", 0.20),
+                ContribucionParametro("2.7.1_catas", 0.10),
+                ContribucionParametro("2.7.3_mineralogia", 0.10),
+                ContribucionParametro("2.7.7_calculo_reservas", 0.20),
+            ],
+        ),
+
+        # --- Eficiencia y Velocidad ---
+        ParametroJuego.numerico(
+            id="velocidad_extraccion",
+            nombre="Velocidad de Extracción",
+            valor_maximo=2.0,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("2.1.3_arrastre", 0.10),
+                ContribucionParametro("2.3.1_picos_palas", 0.10),
+                ContribucionParametro("2.3.4_jumbos_perforacion", 0.20),
+                ContribucionParametro("2.3.5_gruas", 0.15),
+                ContribucionParametro("2.4.3_montacargas", 0.15),
+            ],
+        ),
+
+        # --- Capacidad Logística ---
+        ParametroJuego.numerico(
+            id="capacidad_almacen_recursos",
+            nombre="Capacidad Almacén de Recursos",
+            valor_maximo=5000.0,
+            porcentaje_inicial=0.40,
+            contribuciones=[
+                ContribucionParametro("2.4.1_carromatos", 0.10),
+                ContribucionParametro("2.4.2_caravanas", 0.10),
+                ContribucionParametro("2.4.5_estanterias", 0.15),
+                ContribucionParametro("2.4.6_recipientes", 0.10),
+                ContribucionParametro("2.4.4_gestion_inventarios", 0.15),
+            ],
+        ),
+
+        # --- Seguridad ---
+        ParametroJuego.numerico(
+            id="reduccion_accidentes",
+            nombre="Reducción de Accidentes Mineros/Forestales",
+            valor_maximo=0.90,
+            porcentaje_inicial=0.0,
+            contribuciones=[
+                ContribucionParametro("2.5.1_calzado", 0.10),
+                ContribucionParametro("2.5.2_uniformes", 0.10),
+                ContribucionParametro("2.5.3_inspeccion", 0.15),
+                ContribucionParametro("2.5.4_balizas", 0.10),
+                ContribucionParametro("2.5.5_rescate", 0.15),
+                ContribucionParametro("2.5.6_antiincendios", 0.15),
+                ContribucionParametro("2.5.7_legislacion_seguridad", 0.15),
+            ],
+        ),
+
+        # --- Calidad ---
+        ParametroJuego.numerico(
+            id="calidad_mineral",
+            nombre="Calidad del Mineral Extraído",
+            valor_maximo=1.5,
+            porcentaje_inicial=0.50,
+            contribuciones=[
+                ContribucionParametro("2.7.1_catas", 0.10),
+                ContribucionParametro("2.7.3_mineralogia", 0.15),
+                ContribucionParametro("2.7.4_sismologia", 0.10),
+                ContribucionParametro("2.7.7_calculo_reservas", 0.15),
+            ],
+        ),
+
+        # --- Desbloqueos Lógicos ---
+        ParametroJuego.logico(
+            id="sostenibilidad_forestal",
+            nombre="Tala Sostenible Certificada",
+            contribuciones=[
+                ContribucionParametro("2.1.7_tala_selectiva", 0.5),
+                ContribucionParametro("2.6.1_gestion_forestal_cientifica", 0.5),
+            ],
+        ),
+        ParametroJuego.logico(
+            id="mineria_submarina",
+            nombre="Minería Submarina",
+            contribuciones=[
+                ContribucionParametro("2.2.7_submarina", 1.0),
+            ],
+        ),
+
+        # ==========================================
         # PLACEHOLDERS PARA BLOQUES 2-7
         # Se rellenarán tras validar el piloto
         # ==========================================
