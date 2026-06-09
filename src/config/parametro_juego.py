@@ -64,6 +64,14 @@ class ParametroJuego:
                 raise ValueError("Los parámetros lógicos deben tener porcentaje_inicial=0.0")
 
     # ==========================================
+    # PROPIEDADES DERIVADAS
+    # ==========================================
+    @property
+    def es_logico(self) -> bool:
+        """Devuelve True si es un parámetro binario (desbloqueo)."""
+        return self.tipo == "logico"
+
+    # ==========================================
     # CÁLCULO DE VALOR ACTUAL
     # ==========================================
     def calcular_porcentaje(self, investigaciones_completadas: set[str]) -> float:

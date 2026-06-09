@@ -4,6 +4,9 @@ Singleton de configuración global del juego.
 Se actualizará dinámicamente conforme se completen investigaciones.
 """
 
+from src.config.parametros_registro import REGISTRO_PARAMETROS, get_parametro
+
+
 class GameConfig:
     """Configuración global parametrizable y evolutiva."""
 
@@ -78,6 +81,14 @@ class GameConfig:
         None si el tipo no existe.
         """
         return self._costes_reclutamiento_base.get(tipo_tropa_nombre)
+
+    def get_parametro(self, id_parametro: str):
+        """Acceso directo al registro central de parámetros."""
+        return get_parametro(id_parametro)
+
+    @property
+    def total_parametros(self) -> int:
+        return len(REGISTRO_PARAMETROS)
 
 
 # ==========================================
