@@ -95,3 +95,25 @@ async def eliminar_partida(partida_id: str):
         del game_controller.partidas_activas[partida_id]
         return {"exito": True, "mensaje": "Partida eliminada"}
     raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+# server/api/rutas_admin.py (añadir al final)
+
+# server/api/rutas_admin.py (actualizar listar_jugadores_partida)
+
+@router.get("/partidas/{partida_id}/jugadores")
+async def listar_jugadores_partida(partida_id: str):
+    if partida_id not in game_controller.partidas_activas:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    partida = game_controller.partidas_activas[partida_id]
+    jugadores = []
+    for jugador in partida.jugadores:
+        faccion_nombre = getattr(jugador.faccion, "nombre", "Sin asignar") if jugador.faccion else "Sin asignar"
+        jugadores.append({
+            "nombre_personaje": jugador.nombre_partida,
+            "username": jugador.usuario.username,
+            "rol": jugador.rol.value,
+            "estado": jugador.estado.value,
+            "faccion": faccion_nombre,
+        })
+    return {"partida_id": partida_id, "jugadores": jugadores}
