@@ -190,7 +190,7 @@ async def server_tick():
                 logger.info(f"⏳ Avanzando turno de partida {partida.nombre}...")
 
                 # Avanzar el turno en el motor
-                exito, resumen = game_controller.avanzar_turno(partida_id)
+                exito, resumen = await game_controller.avanzar_turno(partida_id)
 
                 if exito:
                     # Enviar el resumen a todos los jugadores conectados

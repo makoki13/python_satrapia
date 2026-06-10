@@ -1,7 +1,11 @@
 # server/test.py
+"""
+Script de pruebas E2E contra servidor real (server/main.py).
+Ejecutar tras: uvicorn server.main:app --host 0.0.0.0 --port 8000 --reload
+"""
 import sys
 from pathlib import Path
-from typing import Any  # Añadir este import al inicio del fichero
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -18,20 +22,24 @@ WS_URL = "ws://localhost:8000/ws"
 cliente = httpx.Client(base_url=BASE_URL, timeout=10.0)
 
 
-def imprimir_respuesta(etiqueta: str, response: httpx.Response) -> dict:
+def imprimir_respuesta(etiqueta: str, response: httpx.Response) -> dict[str, Any]:
     """Formatea y muestra la respuesta del servidor en consola."""
-    datos = response.json() if response.content else {}
+    datos: dict[str, Any] = response.json() if response.content else {}
     estado = "✅" if response.is_success else "❌"
     print(f"{estado} {etiqueta} [{response.status_code}]")
     print(f"   → {json.dumps(datos, ensure_ascii=False, indent=2)}")
     print()
     return datos
 
+def iniciar_partida(partida_id: str) -> dict[str, Any]:
+    """Inicia una partida (cambia estado LOBBY → EN_CURSO)."""
+    response = cliente.post(f"/admin/partidas/{partida_id}/iniciar")
+    return imprimir_respuesta("Iniciar partida", response)
 
 # ==========================================
 # OPERACIONES DEL GUION
 # ==========================================
-def crear_usuario(username: str, email: str, password: str) -> dict:
+def crear_usuario(username: str, email: str, password: str) -> dict[str, Any]:
     """Crea un nuevo usuario mediante POST /admin/usuarios/crear."""
     response = cliente.post("/admin/usuarios/crear", json={
         "username": username,
@@ -41,7 +49,7 @@ def crear_usuario(username: str, email: str, password: str) -> dict:
     return imprimir_respuesta(f"Crear usuario '{username}'", response)
 
 
-def crear_partida(nombre: str, modo_desarrollo: bool = True) -> dict:
+def crear_partida(nombre: str, modo_desarrollo: bool = True) -> dict[str, Any]:
     """Crea una nueva partida mediante POST /admin/partidas/crear."""
     response = cliente.post("/admin/partidas/crear", json={
         "nombre": nombre,
@@ -49,8 +57,6 @@ def crear_partida(nombre: str, modo_desarrollo: bool = True) -> dict:
     })
     return imprimir_respuesta(f"Crear partida '{nombre}'", response)
 
-
-# server/test.py (actualizar función crear_jugador)
 
 def crear_jugador(
     partida_id: str,
@@ -60,10 +66,10 @@ def crear_jugador(
     nombre_personaje: str,
     rol: str,
     nombre_faccion: str,
-    posicion_inicial: dict | None = None,
-) -> dict:
+    posicion_inicial: dict[str, int] | None = None,
+) -> dict[str, Any]:
     """Crea un jugador con rol y facción asignada."""
-    body: dict[str, Any] = {  # ✅ Tipado explícito para aceptar valores mixtos
+    body: dict[str, Any] = {
         "partida_id": partida_id,
         "username": username,
         "email": email,
@@ -73,39 +79,64 @@ def crear_jugador(
         "nombre_faccion": nombre_faccion,
     }
     if posicion_inicial:
-        body["posicion_inicial"] = posicion_inicial  # ✅ Ahora es válido
+        body["posicion_inicial"] = posicion_inicial
 
     response = cliente.post("/jugador/unirse", json=body)
     return imprimir_respuesta(f"Crear jugador '{nombre_personaje}' ({rol})", response)
 
 
+def construir_granja(
+    partida_id: str,
+    ciudad_nombre: str,
+    coordenada: dict[str, int],
+    capacidad_silo: int = 100,
+) -> dict[str, Any]:
+    """Construye una granja en una posición del mapa vinculada a una ciudad."""
+    response = cliente.post("/admin/edificios/construir", json={
+        "partida_id": partida_id,
+        "ciudad_nombre": ciudad_nombre,
+        "tipo": "granja",
+        "coordenada": coordenada,
+        "capacidad_silo": capacidad_silo,
+    })
+    return imprimir_respuesta(
+        f"Construir granja en ({coordenada['x']}, {coordenada['y']})",
+        response,
+    )
+
+
+def avanzar_turnos(partida_id: str, turnos: int = 1) -> dict[str, Any]:
+    """Avanza uno o más turnos para activar producción y disparadores."""
+    response = cliente.post(f"/admin/partidas/{partida_id}/avanzar_turno", json={
+        "turnos": turnos,
+    })
+    return imprimir_respuesta(f"Avanzar {turnos} turno(s)", response)
+
+
 # ==========================================
 # EJECUCIÓN DEL GUION
 # ==========================================
-# server/test.py (reemplazar bloque __main__)
-
-# server/test.py (actualizar bloque __main__)
-
 if __name__ == "__main__":
     print("=" * 60)
-    print("🎮 SATRAPIA - Test E2E: Asignación de Facciones")
+    print("🎮 SATRAPIA - Test E2E: Producción + Transporte")
     print("=" * 60)
     print()
 
-    # ✅ Tipar explícitamente para que Pylance sepa que son dict[str, Any]
-    usuario: dict = crear_usuario(
+    # Paso 1: Crear usuario y partida base
+    usuario: dict[str, Any] = crear_usuario(
         username="Admin",
         email="admin@satrapia.com",
         password="TestPass123!",
     )
 
-    partida: dict = crear_partida(
-        nombre="Mundo de Prueba",
+    partida: dict[str, Any] = crear_partida(
+        nombre="Mundo Económico",
         modo_desarrollo=True,
     )
 
-    emperador: dict = crear_jugador(
-        partida_id=partida["partida_id"],  # ✅ Ahora Pylance sabe que es str
+    # Paso 2: Emperador → Capital en (3,3)
+    emperador: dict[str, Any] = crear_jugador(
+        partida_id=partida["partida_id"],
         username="Ciro",
         email="ciro@satrapia.com",
         password="TestPass123!",
@@ -114,29 +145,28 @@ if __name__ == "__main__":
         nombre_faccion="Imperio Aqueménida",
     )
 
-    satrapa: dict = crear_jugador(
+    inicio: dict[str, Any] = iniciar_partida(partida["partida_id"])
+
+    # Paso 3: Construir granja en (4,3) - adyacente a capital (3,3)
+    # Silo de 50 para que se llene en 5 turnos (producción base = 10/turno)
+    granja: dict[str, Any] = construir_granja(
         partida_id=partida["partida_id"],
-        username="Dario",
-        email="dario@satrapia.com",
-        password="TestPass123!",
-        nombre_personaje="Darío I",
-        rol="Sátrapa",
-        nombre_faccion="Satrapía de Bactriana",
+        ciudad_nombre="Capital de Imperio Aqueménida",
+        coordenada={"x": 4, "y": 3},
+        capacidad_silo=50,
     )
 
-    jefe: dict = crear_jugador(
+    # Paso 4: Avanzar turnos hasta que el silo se llene y se dispare transporte
+    # Producción 10/turno, silo=50 → lleno en turno 5 → transporte en turno 5-6
+    turno: dict[str, Any] = avanzar_turnos(
         partida_id=partida["partida_id"],
-        username="Atila",
-        email="atila@satrapia.com",
-        password="TestPass123!",
-        nombre_personaje="Atila el Huno",
-        rol="Jefe Nómada",
-        nombre_faccion="Hijos del Viento",
-        posicion_inicial={"x": 80, "y": 80},
+        turnos=7,
     )
 
-    print("\n📋 Verificando estado del servidor...")
+    # Paso 5: Verificar estado final
+    print("\n📋 Estado tras producción y transporte...")
     from server.backoffice import mostrar_backoffice
     mostrar_backoffice()
 
-    print("\n✅ Si ves 3 jugadores con sus facciones arriba, todo funciona.")
+    print("\n✅ Si ves eventos de 'transporte_automatico_creado' arriba,")
+    print("   el ciclo económico completo funciona correctamente.")

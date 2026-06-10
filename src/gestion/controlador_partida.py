@@ -65,29 +65,30 @@ class ControladorPartida:
             return True, f"✅ {nombre_personaje} se ha unido a la sala.", jugador
         return False, "❌ No se pudo unir a la partida (¿quizás ya estás dentro?).", None
 
+    # src/gestion/controlador_partida.py (actualizar iniciar_partida)
+
     def iniciar_partida(self, partida_id: str) -> tuple[bool, str]:
-        """
-        Transiciona la partida a EN_CURSO.
-        Asigna roles, zonas del mapa y crea las facciones (Reinos/Tribus).
-        """
+        """Transiciona la partida a EN_CURSO."""
         partida = self.partidas_activas.get(partida_id)
         if not partida:
             return False, "❌ Partida no encontrada."
 
-        # Comprobaciones previas para dar mensajes de error detallados
         if partida.estado != EstadoPartida.LOBBY:
             return False, f"❌ La partida no está en lobby (estado actual: {partida.estado.name})."
 
-        if len(partida.jugadores) < 2:
-            return False, f"❌ Faltan jugadores. Hay {len(partida.jugadores)}/2 jugadores unidos."
+        # ✅ En modo desarrollo, permitir 1 jugador mínimo
+        minimo_jugadores = 1 if partida.configuracion_mapa.modo_desarrollo else 2
+        if len(partida.jugadores) < minimo_jugadores:
+            return False, f"❌ Faltan jugadores. Hay {len(partida.jugadores)}/{minimo_jugadores}."
 
-        # Delegamos al objeto Partida (que cambiará el estado)
         exito = partida.iniciar_partida()
         if not exito:
             return False, "❌ No se pudo iniciar la partida (error interno)."
 
-        # 🌍 MAGIA DEL MOTOR: Asignación de roles, zonas y creación de facciones
-        self._distribuir_roles_y_facciones(partida)
+        # Solo distribuir roles automáticamente si NO fueron asignados por API
+        jugadores_sin_rol = [j for j in partida.jugadores if j.rol == Rol.SIN_ASIGNAR]
+        if jugadores_sin_rol:
+            self._distribuir_roles_y_facciones(partida)
 
         for jugador in partida.jugadores:
             jugador.activar()
@@ -124,33 +125,34 @@ class ControladorPartida:
     # ==========================================
     # 3. EL RELOJ DEL SERVIDOR (El Tick Global)
     # ==========================================
-    def avanzar_turno(self, partida_id: str) -> tuple[bool, dict]:
+    # src/gestion/controlador_partida.py (reemplazar método avanzar_turno existente)
+
+    async def avanzar_turno(self, partida_id: str) -> tuple[bool, dict]:
         """
-        El servidor llama a esto cada 1 minuto (o cuando todos han enviado órdenes).
-        Resuelve todo y genera el resumen para enviar a los clientes.
+        Ejecuta un tick completo del ServerTick para la partida.
+        Solo funciona si la partida está EN_CURSO.
         """
         partida = self.partidas_activas.get(partida_id)
         if not partida:
-            return False, {}
+            return False, {"error": "Partida no encontrada"}
 
-        partida.turno_actual += 1
+        if partida.estado != EstadoPartida.EN_CURSO:
+            return False, {"error": f"La partida no está en curso (estado: {partida.estado.name})"}
 
-        # Aquí el motor calcularía:
-        # 1. Movimientos de tropas y nómadas
-        # 2. Resolución de combates
-        # 3. Crecimiento de ciudades y economía
+        from src.config.game_config import GameConfig
+        from src.core.server_tick import ServerTick
+        from src.investigacion.arbol_investigaciones import ArbolInvestigaciones
 
-        resumen_turno = {
-            "turno": partida.turno_actual,
-            "eventos": [
-                "El sol sale sobre el imperio.",
-                "Las tribus nómadas levantan sus campamentos."
-            ],
-            "jugadores_activos": len([j for j in partida.jugadores if j.estado == EstadoJugador.ACTIVO])
-        }
+        config = GameConfig()
+        arbol = ArbolInvestigaciones.construir([])
 
-        print(f"⏳ [SERVIDOR] Turno {partida.turno_actual} resuelto para '{partida.nombre}'.")
-        return True, resumen_turno
+        tick = ServerTick(partida=partida, config=config, arbol=arbol)
+
+        # ✅ Simplemente await directo; FastAPI maneja el loop
+        resumen = await tick.ejecutar()
+
+        print(f"⏳ [SERVIDOR] Turno {resumen['turno']} resuelto para '{partida.nombre}'.")
+        return True, resumen
 
     # ==========================================
     # MÉTODOS PRIVADOS (Lógica Interna)
@@ -324,7 +326,8 @@ if __name__ == "__main__":
 
     # 7. El Reloj del Servidor avanza el turno
     print("\n=== Avanzando Turno (Tick del Servidor) ===")
-    _, resumen = servidor.avanzar_turno(partida.id)
+    import asyncio
+    _, resumen = asyncio.run(servidor.avanzar_turno(partida.id))
     print(f"Resumen emitido a los clientes: {resumen}")
 
     print("\n--- Fin de las pruebas ---")
