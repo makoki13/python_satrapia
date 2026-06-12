@@ -205,6 +205,15 @@ def renderizar_monitor(datos: dict) -> str:  # noqa: C901
                     if "almacen" in granja:
                         lineas.extend(formatear_almacen(granja["almacen"]))
 
+                        # Serrerías
+            serrerias = edificios.get("serrerias", [])
+            if serrerias:
+                lineas.append("      🪵 Serrerías:")
+                for serreria in serrerias:
+                    lineas.append(f"         - {serreria['nombre']}:")
+                    if "almacen" in serreria:
+                        lineas.extend(formatear_almacen(serreria["almacen"]))
+
     transportes = datos.get("transportes_activos", [])
     lineas.append(f"\n{'─' * 75}")
     lineas.append(f"🚛 TRANSPORTES ACTIVOS: {len(transportes)}")

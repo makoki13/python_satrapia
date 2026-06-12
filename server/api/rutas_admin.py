@@ -386,6 +386,16 @@ async def obtener_estado_detallado(partida_id: str):  # noqa: C901
                     granjas_data.append(granja_info)
                 ciudad_data["edificios"]["granjas"] = granjas_data
 
+                        # Serrerías
+            if ciudad.serrerias:
+                serrerias_data = []
+                for serreria in ciudad.serrerias:
+                    serr_info: dict[str, Any] = {"nombre": serreria.nombre}
+                    if serreria.almacen:
+                        serr_info["almacen"] = serreria.almacen.resumen_stock(config)
+                    serrerias_data.append(serr_info)
+                ciudad_data["edificios"]["serrerias"] = serrerias_data
+
             ciudades_jugador.append(ciudad_data)
 
         jugadores_data.append({
