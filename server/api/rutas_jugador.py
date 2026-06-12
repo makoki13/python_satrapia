@@ -91,7 +91,10 @@ def _crear_faccion_y_capital(
     rol_enum = Rol(rol_str)
     jugador.asignar_rol(rol_enum)
 
+    # server/api/rutas_jugador.py (solo bloques Emperador y Sátrapa en _crear_faccion_y_capital)
+
     if rol_str == "Emperador":
+        from src.economia.edificios.palacio import Palacio
         reino = Reino(nombre=nombre_faccion, es_imperial=True)
         partida.reinos.append(reino)
 
@@ -101,9 +104,13 @@ def _crear_faccion_y_capital(
             ubicacion=coord,
             reino_propietario=reino,
         )
-        # ✅ Ya no necesitamos agregar_silo manualmente; viene por defecto
-        capital.almacen.nombre = f"Almacén {capital.nombre}"
 
+        # ✅ Crear Palacio explícitamente
+        capital.palacio = Palacio(nombre=f"Palacio Imperial de {nombre_faccion}")
+        capital.tiene_palacio = True
+        capital.tiene_castillo = True  # Palacio imperial incluye castillo
+
+        capital.almacen.nombre = f"Almacén {capital.nombre}"
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 
@@ -120,6 +127,7 @@ def _crear_faccion_y_capital(
         }
 
     elif rol_str == "Sátrapa":
+        from src.economia.edificios.palacio import Palacio
         reino = Reino(nombre=nombre_faccion, es_imperial=False)
         partida.reinos.append(reino)
 
@@ -129,9 +137,12 @@ def _crear_faccion_y_capital(
             ubicacion=coord,
             reino_propietario=reino,
         )
-        # ✅ Ya no necesitamos agregar_silo manualmente; viene por defecto
-        capital.almacen.nombre = f"Almacén {capital.nombre}"
 
+        # ✅ Crear Palacio explícitamente (capital vasalla = castillo, no palacio imperial)
+        capital.palacio = Palacio(nombre=f"Palacio Real de {nombre_faccion}")
+        capital.tiene_castillo = True
+
+        capital.almacen.nombre = f"Almacén {capital.nombre}"
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 

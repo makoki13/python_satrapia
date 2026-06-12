@@ -29,7 +29,14 @@ def _crear_almacen_ciudad() -> Almacen:
             capacidad_base=500,
         ))
 
-        # Futuro: Añadir aquí silos de Madera, Piedra, Hierro, Oro según diseño económico
+        # ✅ NUEVO: Silo de Madera para recibir de serrerías
+        alm.agregar_silo(Silo(
+            nombre="Silo Madera",
+            tipo_recurso=TipoRecurso.MADERA,
+            capacidad_base=500,
+        ))
+
+        # Futuro: Añadir aquí silos de Piedra, Hierro, Oro según diseño económico
         # alm.agregar_silo(Silo(...))
 
         return alm

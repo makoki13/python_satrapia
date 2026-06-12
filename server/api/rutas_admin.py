@@ -268,6 +268,50 @@ async def construir_edificio(request: ConstruirEdificioRequest):  # noqa: C901
             "silo_capacidad": request.capacidad_silo,
             "ciudad": request.ciudad_nombre,
         }
+    # server/api/rutas_admin.py (añadir tras el "if request.tipo == 'granja':")
+
+    elif request.tipo == "serreria":
+        from src.economia.edificios.serreria import Serreria
+        from src.territorio.punto import Punto
+
+        serreria = Serreria.crear(
+            nombre=f"Serrería de {request.ciudad_nombre}",
+            coordenada=coord,
+            capacidad_silo=request.capacidad_silo,
+        )
+        ciudad.serrerias.append(serreria)
+
+        # Mismo corredor GPS que la granja
+        dest_x, dest_y = ciudad.ubicacion.x, ciudad.ubicacion.y
+        min_x = max(0, min(coord.x, dest_x) - 1)
+        max_x = min(partida.mapa.limite_x - 1, max(coord.x, dest_x) + 1)
+        min_y = max(0, min(coord.y, dest_y) - 1)
+        max_y = min(partida.mapa.limite_y - 1, max(coord.y, dest_y) + 1)
+
+        for rx in range(min_x, max_x + 1):
+            for ry in range(min_y, max_y + 1):
+                c = Coordenada(rx, ry)
+                if c not in partida.mapa.puntos:
+                    partida.mapa.puntos[c] = Punto(
+                        coordenada=c,
+                        propietario=ciudad.reino_propietario,
+                    )
+
+        if ciudad.ubicacion not in partida.mapa.puntos:
+            partida.mapa.puntos[ciudad.ubicacion] = Punto(
+                coordenada=ciudad.ubicacion,
+                estructura=ciudad,
+                propietario=ciudad.reino_propietario,
+            )
+
+        return {
+            "exito": True,
+            "mensaje": f"Serrería creada en ({coord.x}, {coord.y})",
+            "edificio": "serreria",
+            "coordenada": {"x": coord.x, "y": coord.y},
+            "silo_capacidad": request.capacidad_silo,
+            "ciudad": request.ciudad_nombre,
+        }
 
     raise HTTPException(
         status_code=400,

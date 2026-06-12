@@ -112,6 +112,21 @@ def construir_granja(
         response,
     )
 
+# server/test.py (añadir función tras construir_granja)
+
+def construir_serreria(
+    partida_id: str, ciudad_nombre: str,
+    coordenada: dict[str, int], capacidad_silo: int = 100,
+) -> dict[str, Any]:
+    response = cliente.post("/admin/edificios/construir", json={
+        "partida_id": partida_id, "ciudad_nombre": ciudad_nombre,
+        "tipo": "serreria", "coordenada": coordenada,
+        "capacidad_silo": capacidad_silo,
+    })
+    return imprimir_respuesta(
+        f"Construir serrería en ({coordenada['x']}, {coordenada['y']})", response,
+    )
+
 
 def avanzar_turnos(partida_id: str, turnos: int = 1) -> dict[str, Any]:
     response = cliente.post(
@@ -326,6 +341,13 @@ if __name__ == "__main__":
         partida_id=partida_id,
         ciudad_nombre="Capital de Imperio Aqueménida",
         coordenada={"x": 6, "y": 3},
+        capacidad_silo=50,
+    )
+
+    serreria: dict[str, Any] = construir_serreria(
+        partida_id=partida_id,
+        ciudad_nombre="Capital de Imperio Aqueménida",
+        coordenada={"x": 3, "y": 6},  # Diferente a granja (6,3) y capital (3,3)
         capacidad_silo=50,
     )
 

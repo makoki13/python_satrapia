@@ -43,6 +43,14 @@ class Palacio:
     # ==========================================
     # INICIALIZACIÓN
     # ==========================================
+    # src/economia/edificios/palacio.py (actualizar __post_init__)
+
+    # ==========================================
+    # CONSTANTES DE INICIALIZACIÓN
+    # ==========================================
+    POBLACION_INICIAL_BASE: int = 1_000  # Habitantes de partida
+    ORO_INICIAL_BASE: int = 500          # Tesoro inicial del reino
+
     def __post_init__(self):
         if self._almacen_interno is None:
             self._almacen_interno = Almacen(nombre=f"Tesorería de {self.nombre}")
@@ -58,11 +66,24 @@ class Palacio:
             silo_oro = Silo(
                 nombre="Tesoro Imperial",
                 tipo_recurso=TipoRecurso.ORO,
-                capacidad_base=-1,  # -1 = sin límite
+                capacidad_base=-1,
             )
 
             self._almacen_interno.agregar_silo(silo_poblacion)
             self._almacen_interno.agregar_silo(silo_oro)
+
+            # ✅ POBLAR SILOS CON VALORES INICIALES
+            # Esto rompe el punto muerto: con población > 0 ya hay impuestos y crecimiento
+            self._almacen_interno.agregar_recurso(
+                TipoRecurso.POBLACION,
+                self.POBLACION_INICIAL_BASE,
+                config=None,  # type: ignore[arg-type]
+            )
+            self._almacen_interno.agregar_recurso(
+                TipoRecurso.ORO,
+                self.ORO_INICIAL_BASE,
+                config=None,  # type: ignore[arg-type]
+            )
 
     # ==========================================
     # GESTIÓN DE POBLACIÓN
