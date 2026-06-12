@@ -4,6 +4,7 @@ Script unificado: Test E2E + Monitor en tiempo real.
 Ejecuta el guion completo de pruebas y lanza automáticamente el monitor.
 Uso: python server/test.py [--solo-monitor <partida_id>]
 """
+
 import os
 import sys
 import time
@@ -13,6 +14,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import json
+
 import httpx
 
 # ==========================================
@@ -37,28 +39,46 @@ def imprimir_respuesta(etiqueta: str, response: httpx.Response) -> dict[str, Any
 # OPERACIONES DEL GUION E2E
 # ==========================================
 def crear_usuario(username: str, email: str, password: str) -> dict[str, Any]:
-    response = cliente.post("/admin/usuarios/crear", json={
-        "username": username, "email": email, "password": password,
-    })
+    response = cliente.post(
+        "/admin/usuarios/crear",
+        json={
+            "username": username,
+            "email": email,
+            "password": password,
+        },
+    )
     return imprimir_respuesta(f"Crear usuario '{username}'", response)
 
 
 def crear_partida(nombre: str, modo_desarrollo: bool = True) -> dict[str, Any]:
-    response = cliente.post("/admin/partidas/crear", json={
-        "nombre": nombre, "modo_desarrollo": modo_desarrollo,
-    })
+    response = cliente.post(
+        "/admin/partidas/crear",
+        json={
+            "nombre": nombre,
+            "modo_desarrollo": modo_desarrollo,
+        },
+    )
     return imprimir_respuesta(f"Crear partida '{nombre}'", response)
 
 
 def crear_jugador(
-    partida_id: str, username: str, email: str, password: str,
-    nombre_personaje: str, rol: str, nombre_faccion: str,
+    partida_id: str,
+    username: str,
+    email: str,
+    password: str,
+    nombre_personaje: str,
+    rol: str,
+    nombre_faccion: str,
     posicion_inicial: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "partida_id": partida_id, "username": username, "email": email,
-        "password": password, "nombre_personaje": nombre_personaje,
-        "rol": rol, "nombre_faccion": nombre_faccion,
+        "partida_id": partida_id,
+        "username": username,
+        "email": email,
+        "password": password,
+        "nombre_personaje": nombre_personaje,
+        "rol": rol,
+        "nombre_faccion": nombre_faccion,
     }
     if posicion_inicial:
         body["posicion_inicial"] = posicion_inicial
@@ -72,23 +92,34 @@ def iniciar_partida(partida_id: str) -> dict[str, Any]:
 
 
 def construir_granja(
-    partida_id: str, ciudad_nombre: str,
-    coordenada: dict[str, int], capacidad_silo: int = 100,
+    partida_id: str,
+    ciudad_nombre: str,
+    coordenada: dict[str, int],
+    capacidad_silo: int = 100,
 ) -> dict[str, Any]:
-    response = cliente.post("/admin/edificios/construir", json={
-        "partida_id": partida_id, "ciudad_nombre": ciudad_nombre,
-        "tipo": "granja", "coordenada": coordenada,
-        "capacidad_silo": capacidad_silo,
-    })
+    response = cliente.post(
+        "/admin/edificios/construir",
+        json={
+            "partida_id": partida_id,
+            "ciudad_nombre": ciudad_nombre,
+            "tipo": "granja",
+            "coordenada": coordenada,
+            "capacidad_silo": capacidad_silo,
+        },
+    )
     return imprimir_respuesta(
-        f"Construir granja en ({coordenada['x']}, {coordenada['y']})", response,
+        f"Construir granja en ({coordenada['x']}, {coordenada['y']})",
+        response,
     )
 
 
 def avanzar_turnos(partida_id: str, turnos: int = 1) -> dict[str, Any]:
-    response = cliente.post(f"/admin/partidas/{partida_id}/avanzar_turno", json={
-        "turnos": turnos,
-    })
+    response = cliente.post(
+        f"/admin/partidas/{partida_id}/avanzar_turno",
+        json={
+            "turnos": turnos,
+        },
+    )
     return imprimir_respuesta(f"Avanzar {turnos} turno(s)", response)
 
 
@@ -117,7 +148,9 @@ def renderizar_monitor(datos: dict) -> str:  # noqa: C901
     ]
 
     for jugador in datos["jugadores"]:
-        lineas.append(f"\n👤 Jugador: {jugador['nombre_personaje']} ({jugador['username']})")
+        lineas.append(
+            f"\n👤 Jugador: {jugador['nombre_personaje']} ({jugador['username']})"
+        )
         lineas.append(f"   Rol: {jugador['rol']} | Facción: {jugador['faccion']}")
 
         if not jugador["ciudades"]:
@@ -136,7 +169,9 @@ def renderizar_monitor(datos: dict) -> str:  # noqa: C901
                 pob = palacio["poblacion"]
                 oro = palacio["oro"]
                 lineas.append("      🏛️ Palacio:")
-                lineas.append(f"         - Habitantes: {pob['actual']} / {pob['maxima']}")
+                lineas.append(
+                    f"         - Habitantes: {pob['actual']} / {pob['maxima']}"
+                )
                 lineas.append(
                     f"         - Tesorería: {oro['actual']} "
                     f"(impuestos previstos: {oro['impuestos_previstos']})"
@@ -195,6 +230,27 @@ def lanzar_monitor(partida_id: str):
 
     monitor_cliente = httpx.Client(base_url=BASE_URL, timeout=5.0)
 
+    # server/test.py (actualizar dentro de lanzar_monitor)
+
+    try:
+        resp = monitor_cliente.get(
+            f"/admin/partidas/{partida_id}/estado_detallado"
+        )
+        if resp.is_success:
+            print(renderizar_monitor(resp.json()))
+        elif resp.status_code == 404:
+            # ✅ No es un error; simplemente no hay partida activa
+            limpiar_consola()
+            print("=" * 75)
+            print("⏳ ESPERANDO PARTIDA ACTIVA...")
+            print(f"   ID buscado: {partida_id}")
+            print("   Ejecuta 'python server/test.py' para crear una.")
+            print("=" * 75)
+        else:
+            print(f"❌ Error [{resp.status_code}]: {resp.text}")
+    except httpx.ConnectError:
+        print("❌ No se pudo conectar al servidor.")
+
     try:
         while True:
             limpiar_consola()
@@ -205,7 +261,13 @@ def lanzar_monitor(partida_id: str):
                 if resp.is_success:
                     print(renderizar_monitor(resp.json()))
                 else:
-                    print(f"❌ Error [{resp.status_code}]: {resp.text}")
+                    # ✅ No es un error; simplemente no hay partida activa
+                    limpiar_consola()
+                    print("=" * 75)
+                    print("⏳ ESPERANDO PARTIDA ACTIVA...")
+                    print(f"   ID buscado: {partida_id}")
+                    print("   Ejecuta 'python server/test.py' para crear una.")
+                    print("=" * 75)
             except httpx.ConnectError:
                 print("❌ No se pudo conectar al servidor.")
                 print("   Asegúrate de que esté corriendo:")
@@ -234,19 +296,26 @@ if __name__ == "__main__":
 
     # Paso 1: Crear usuario y partida base
     usuario: dict[str, Any] = crear_usuario(
-        username="Admin", email="admin@satrapia.com", password="TestPass123!",
+        username="Admin",
+        email="admin@satrapia.com",
+        password="TestPass123!",
     )
 
     partida: dict[str, Any] = crear_partida(
-        nombre="Mundo Económico", modo_desarrollo=True,
+        nombre="Mundo Económico",
+        modo_desarrollo=True,
     )
     partida_id: str = partida["partida_id"]
 
     # Paso 2: Emperador → Capital en (3,3)
     emperador: dict[str, Any] = crear_jugador(
-        partida_id=partida_id, username="Ciro", email="ciro@satrapia.com",
-        password="TestPass123!", nombre_personaje="Ciro el Grande",
-        rol="Emperador", nombre_faccion="Imperio Aqueménida",
+        partida_id=partida_id,
+        username="Ciro",
+        email="ciro@satrapia.com",
+        password="TestPass123!",
+        nombre_personaje="Ciro el Grande",
+        rol="Emperador",
+        nombre_faccion="Imperio Aqueménida",
     )
 
     # Paso 3: Iniciar partida
@@ -256,7 +325,7 @@ if __name__ == "__main__":
     granja: dict[str, Any] = construir_granja(
         partida_id=partida_id,
         ciudad_nombre="Capital de Imperio Aqueménida",
-        coordenada={"x": 4, "y": 3},
+        coordenada={"x": 6, "y": 3},
         capacidad_silo=50,
     )
 
