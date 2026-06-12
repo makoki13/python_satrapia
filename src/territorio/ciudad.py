@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.coordenada import Coordenada
 from src.economia.almacen import Almacen  # ← AÑADIR ESTE IMPORT
+from src.economia.silo import Silo, TipoRecurso
 
 # Import solo para type hints, evita importación circular
 if TYPE_CHECKING:
@@ -14,6 +15,24 @@ if TYPE_CHECKING:
     from src.economia.edificios.palacio import Palacio
     from src.territorio.reino import Reino
 
+def _crear_almacen_ciudad() -> Almacen:
+        """
+        Crea un almacén urbano con los silos básicos que toda ciudad necesita.
+        Esto asegura que las ciudades puedan recibir recursos esenciales sin configuración manual.
+        """
+        alm = Almacen(nombre="Almacén Central")
+
+        # Silo básico de Comida (esencial para supervivencia y transporte desde granjas)
+        alm.agregar_silo(Silo(
+            nombre="Silo Comida",
+            tipo_recurso=TipoRecurso.COMIDA,
+            capacidad_base=500,
+        ))
+
+        # Futuro: Añadir aquí silos de Madera, Piedra, Hierro, Oro según diseño económico
+        # alm.agregar_silo(Silo(...))
+
+        return alm
 
 @dataclass
 class Ciudad:
@@ -35,7 +54,7 @@ class Ciudad:
     # ==========================================
     # ALMACÉN CENTRAL DE LA CIUDAD
     # ==========================================
-    almacen: Almacen = field(default_factory=lambda: Almacen(nombre="Almacén Central"))
+    almacen: Almacen = field(default_factory=_crear_almacen_ciudad)
 
     # ==========================================
     # EDIFICIOS URBANOS (Objetos operativos)
@@ -127,6 +146,7 @@ class Ciudad:
             "mina_oro": self.minas_oro,
         }
         return mapeo.get(tipo)
+
 
     # ==========================================
     # GESTIÓN DEL EMPERADOR

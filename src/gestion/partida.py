@@ -155,17 +155,27 @@ class Partida:
     # ==========================================
     # CONTROL DE ESTADO
     # ==========================================
+    # src/gestion/partida.py (reemplazar método iniciar_partida existente)
+
     def iniciar_partida(self) -> bool:
         """
         Transiciona la partida de LOBBY a EN_CURSO.
-        Requiere al menos 2 jugadores. Inicializa entidades de juego.
+        En modo desarrollo permite 1 jugador mínimo; en producción requiere 2.
+        Inicializa entidades de juego.
         """
         if self.estado != EstadoPartida.LOBBY:
             print(f"⚠️ La partida no está en LOBBY. Estado: {self.estado.name}")
             return False
 
-        if len(self.jugadores) < 2:
-            print(f"⚠️ Se necesitan al menos 2 jugadores para empezar. Hay {len(self.jugadores)}.")
+        # ✅ Mínimo de jugadores según modo
+        es_desarrollo = self.configuracion_mapa.max_x < 500
+        minimo_jugadores = 1 if es_desarrollo else 2
+
+        if len(self.jugadores) < minimo_jugadores:
+            print(
+                f"⚠️ Se necesitan al menos {minimo_jugadores} jugador(es) para empezar. "
+                f"Hay {len(self.jugadores)}."
+            )
             return False
 
         self.estado = EstadoPartida.EN_CURSO

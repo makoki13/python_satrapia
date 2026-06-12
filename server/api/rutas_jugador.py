@@ -1,4 +1,6 @@
 # server/api/rutas_jugador.py
+import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
@@ -8,6 +10,8 @@ from src.usuarios.jugador import Rol
 from src.usuarios.usuario import Usuario
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 # ==========================================
@@ -67,6 +71,8 @@ class RespuestaJugador(BaseModel):
 # ==========================================
 # server/api/rutas_jugador.py (actualizar _crear_faccion_y_capital)
 
+# server/api/rutas_jugador.py (simplificar _crear_faccion_y_capital)
+
 def _crear_faccion_y_capital(
     partida,
     jugador,
@@ -76,9 +82,8 @@ def _crear_faccion_y_capital(
 ) -> dict:
     """
     Crea la entidad política según el rol y la vincula al jugador.
-    Coordenadas ajustadas al grid de prueba (0-5 x 0-5).
+    Las capitales se crean con almacenes pre-configurados (silos por defecto).
     """
-    from src.economia.edificios.granja import Granja  # noqa: F401
     from src.territorio.ciudad import Ciudad
     from src.territorio.punto import Punto
     from src.territorio.reino import Reino
@@ -90,21 +95,21 @@ def _crear_faccion_y_capital(
         reino = Reino(nombre=nombre_faccion, es_imperial=True)
         partida.reinos.append(reino)
 
-        # ✅ Capital imperial en (3, 3) - centro del grid de prueba
         coord = Coordenada(3, 3)
         capital = Ciudad(
             nombre=f"Capital de {nombre_faccion}",
             ubicacion=coord,
             reino_propietario=reino,
         )
+        # ✅ Ya no necesitamos agregar_silo manualmente; viene por defecto
         capital.almacen.nombre = f"Almacén {capital.nombre}"
+
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 
         partida.mapa.puntos[coord] = Punto(
             coordenada=coord, estructura=capital, propietario=reino
         )
-
         jugador.asignar_faccion(reino)
 
         return {
@@ -118,21 +123,21 @@ def _crear_faccion_y_capital(
         reino = Reino(nombre=nombre_faccion, es_imperial=False)
         partida.reinos.append(reino)
 
-        # ✅ Capital vasalla en (1, 1) - dentro del grid de prueba
         coord = Coordenada(1, 1)
         capital = Ciudad(
             nombre=f"Capital de {nombre_faccion}",
             ubicacion=coord,
             reino_propietario=reino,
         )
+        # ✅ Ya no necesitamos agregar_silo manualmente; viene por defecto
         capital.almacen.nombre = f"Almacén {capital.nombre}"
+
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 
         partida.mapa.puntos[coord] = Punto(
             coordenada=coord, estructura=capital, propietario=reino
         )
-
         jugador.asignar_faccion(reino)
 
         return {
@@ -143,7 +148,7 @@ def _crear_faccion_y_capital(
         }
 
     elif rol_str == "Jefe Nómada":
-        assert posicion_inicial is not None, "posicion_inicial es obligatorio para Jefe Nómada"
+        assert posicion_inicial is not None
         coord = Coordenada(posicion_inicial["x"], posicion_inicial["y"])
 
         try:
