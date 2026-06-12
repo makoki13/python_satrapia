@@ -232,8 +232,10 @@ async def avanzar_turno_admin(partida_id: str, request: AvanzarTurnoRequest):
 
     # server/api/rutas_admin.py (añadir al final)
 
+# server/api/rutas_admin.py (actualizar obtener_estado_detallado)
+
 @router.get("/partidas/{partida_id}/estado_detallado")
-async def obtener_estado_detallado(partida_id: str):
+async def obtener_estado_detallado(partida_id: str):  # noqa: C901
     """Devuelve el estado completo de una partida para el monitor."""
     if partida_id not in game_controller.partidas_activas:
         raise HTTPException(status_code=404, detail="Partida no encontrada")
@@ -242,12 +244,31 @@ async def obtener_estado_detallado(partida_id: str):
     config = GameConfig()
     partida = game_controller.partidas_activas[partida_id]
 
+    # ✅ Obtener transportes activos con movimientos pendientes
+    # server/api/rutas_admin.py (reemplazar bloque de transportes_activos)
+
+    # ✅ Obtener transportes activos con movimientos pendientes
+    transportes_activos = []
+    if partida.gestor_transportes is not None:
+        for transporte in partida.gestor_transportes._por_id.values():
+            transportes_activos.append({
+                "id": transporte.id,
+                "tipo": transporte.tipo.value,
+                "origen": str(transporte.origen),
+                "destino": str(transporte.destino),
+                "recurso": transporte.tipo_recurso.value if transporte.tipo_recurso else None,
+                "cantidad": transporte.cantidad,
+                "movimientos_pendientes": transporte.waypoints_restantes,  # ✅ Propiedad nativa
+                "progreso_pct": round(transporte.progreso_porcentaje, 1),  # ✅ Bonus: % completado
+                "posicion_actual": str(transporte.posicion_actual),
+                "propietario": transporte.propietario_id,
+            })
+
     jugadores_data = []
     for jugador in partida.jugadores:
         ciudades_jugador = []
         faccion = jugador.faccion
 
-        # Obtener ciudades de la facción del jugador
         ciudades_faccion = [
             c for c in partida.ciudades
             if c.reino_propietario and hasattr(faccion, 'nombre')
@@ -257,12 +278,17 @@ async def obtener_estado_detallado(partida_id: str):
         for ciudad in ciudades_faccion:
             ciudad_data: dict[str, Any] = {
                 "nombre": ciudad.nombre,
+                "poblacion": 0,
+                "oro": 0,
                 "edificios": {},
             }
 
-            # Palacio
+            # ✅ Población y Oro a nivel de ciudad (desde Palacio)
             if ciudad.palacio:
-                ciudad_data["edificios"]["palacio"] = ciudad.palacio.resumen(config)
+                resumen_palacio = ciudad.palacio.resumen(config)
+                ciudad_data["poblacion"] = resumen_palacio["poblacion"]["actual"]
+                ciudad_data["oro"] = resumen_palacio["oro"]["actual"]
+                ciudad_data["edificios"]["palacio"] = resumen_palacio
 
             # Almacén central
             if ciudad.almacen:
@@ -293,4 +319,5 @@ async def obtener_estado_detallado(partida_id: str):
         "turno_actual": partida.turno_actual,
         "estado": partida.estado.name,
         "jugadores": jugadores_data,
+        "transportes_activos": transportes_activos,
     }
