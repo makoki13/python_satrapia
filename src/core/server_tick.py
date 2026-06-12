@@ -259,6 +259,9 @@ class ServerTick:
                     logger.debug("   🏭 %s", msg)
 
             # 1b. Recaudación de impuestos en el Palacio
+            # src/core/server_tick.py (dentro del bucle "for ciudad in self.partida.ciudades")
+
+            # 1b. Recaudación de impuestos en el Palacio
             if ciudad.palacio:
                 exito_imp, oro, msg_imp = ciudad.palacio.recaudar_impuestos(self.config)
                 if exito_imp and oro > 0:
@@ -269,6 +272,24 @@ class ServerTick:
                         "oro": oro,
                         "poblacion": ciudad.palacio.get_poblacion(),
                     })
+
+                # ✅ 1c. Crecimiento/Decrecimiento poblacional cada N turnos
+                CICLOS_CRECIMIENTO = 5  # Cada 5 turnos se ajusta la población  # noqa: N806
+                PORCENTAJE_CRECIMIENTO = 0.02  # 2% por ciclo  # noqa: N806
+
+                if self.partida.turno_actual % CICLOS_CRECIMIENTO == 0:
+                    poblacion_actual = ciudad.palacio.get_poblacion()
+                    if poblacion_actual > 0:
+                        cambio = max(1, int(poblacion_actual * PORCENTAJE_CRECIMIENTO))
+                        exito_crec, real_crec, msg_crec = ciudad.palacio.actualizar_poblacion(cambio)
+                        if exito_crec and real_crec > 0:
+                            logger.debug("   👥 %s: +%d habitantes (%s)", ciudad.nombre, real_crec, msg_crec)
+                            eventos.append({
+                                "tipo": "crecimiento_poblacional",
+                                "ciudad": ciudad.nombre,
+                                "cambio": real_crec,
+                                "poblacion_nueva": ciudad.palacio.get_poblacion(),
+                            })
 
         # ==========================================
         # FASE 2: LOGÍSTICA (Global)

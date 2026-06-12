@@ -229,3 +229,68 @@ async def avanzar_turno_admin(partida_id: str, request: AvanzarTurnoRequest):
         "mensaje": f"Avanzados {resumen_acumulado['turnos_avanzados']} turno(s)",
         "resumen": resumen_acumulado,
     }
+
+    # server/api/rutas_admin.py (añadir al final)
+
+@router.get("/partidas/{partida_id}/estado_detallado")
+async def obtener_estado_detallado(partida_id: str):
+    """Devuelve el estado completo de una partida para el monitor."""
+    if partida_id not in game_controller.partidas_activas:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    from src.config.game_config import GameConfig
+    config = GameConfig()
+    partida = game_controller.partidas_activas[partida_id]
+
+    jugadores_data = []
+    for jugador in partida.jugadores:
+        ciudades_jugador = []
+        faccion = jugador.faccion
+
+        # Obtener ciudades de la facción del jugador
+        ciudades_faccion = [
+            c for c in partida.ciudades
+            if c.reino_propietario and hasattr(faccion, 'nombre')
+            and c.reino_propietario.nombre == faccion.nombre
+        ]
+
+        for ciudad in ciudades_faccion:
+            ciudad_data: dict[str, Any] = {
+                "nombre": ciudad.nombre,
+                "edificios": {},
+            }
+
+            # Palacio
+            if ciudad.palacio:
+                ciudad_data["edificios"]["palacio"] = ciudad.palacio.resumen(config)
+
+            # Almacén central
+            if ciudad.almacen:
+                ciudad_data["edificios"]["almacen"] = ciudad.almacen.resumen_stock(config)
+
+            # Granjas
+            if ciudad.granjas:
+                granjas_data = []
+                for granja in ciudad.granjas:
+                    granja_info: dict[str, Any] = {"nombre": granja.nombre}
+                    if granja.almacen:
+                        granja_info["almacen"] = granja.almacen.resumen_stock(config)
+                    granjas_data.append(granja_info)
+                ciudad_data["edificios"]["granjas"] = granjas_data
+
+            ciudades_jugador.append(ciudad_data)
+
+        jugadores_data.append({
+            "nombre_personaje": jugador.nombre_partida,
+            "username": jugador.usuario.username,
+            "rol": jugador.rol.value,
+            "faccion": getattr(faccion, "nombre", "Sin asignar"),
+            "ciudades": ciudades_jugador,
+        })
+
+    return {
+        "partida_nombre": partida.nombre,
+        "turno_actual": partida.turno_actual,
+        "estado": partida.estado.name,
+        "jugadores": jugadores_data,
+    }
