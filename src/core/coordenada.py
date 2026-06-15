@@ -1,5 +1,8 @@
 # src/core/coordenada.py
 import math
+
+# FrozenInstanceError deriva de AttributeError la cual deriva de Exception
+# Exception de BaseException
 from dataclasses import FrozenInstanceError, dataclass
 
 
