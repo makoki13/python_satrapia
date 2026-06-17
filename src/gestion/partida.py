@@ -12,6 +12,7 @@ from src.territorio.mapa import Mapa
 if TYPE_CHECKING:
     from src.logistica.gestor_transportes import GestorTransportes
     from src.territorio.ciudad import Ciudad
+    from src.territorio.gestor_zonas import GestorZonas
     from src.territorio.reino import Reino
 
 
@@ -58,7 +59,13 @@ class ConfiguracionMapa:
 class Partida:
     """
     Representa una instancia de juego donde los usuarios se convierten en jugadores.
-    Gestiona el estado, el mapa, y el ciclo de vida completo de la sesión.
+    Gestiona el estado, el mapa, las zonas disponibles y el ciclo de vida completo
+    de la sesión.
+
+    Al crearse, inicializa automáticamente:
+      - Un Mapa con las dimensiones configuradas.
+      - Un GestorZonas que distribuye 9 zonas (1 IMPERIO + 4 SATRAPÍAS + 4 TRIBUS)
+        escaladas al tamaño del mapa.
     """
 
     # ==========================================
@@ -72,7 +79,9 @@ class Partida:
     # ==========================================
     estado: EstadoPartida = EstadoPartida.LOBBY
     turno_actual: int = 0
-    configuracion_mapa: ConfiguracionMapa = field(default_factory=ConfiguracionMapa.modo_produccion)
+    configuracion_mapa: ConfiguracionMapa = field(
+        default_factory=ConfiguracionMapa.modo_produccion
+    )
 
     # ==========================================
     # ATRIBUTOS INTERNOS (init=False)
@@ -85,6 +94,7 @@ class Partida:
     # Colecciones de sesión
     jugadores: list = field(default_factory=list)  # Lista de objetos Jugador
     mapa: Mapa = field(init=False)  # Siempre existirá, se crea en __post_init__
+    gestor_zonas: GestorZonas = field(init=False)  # Distribuye zonas sobre el mapa
 
     # ==========================================
     # ENTIDADES DE JUEGO (Se inicializan al iniciar partida)
@@ -99,7 +109,9 @@ class Partida:
     def __post_init__(self):
         self.id = str(uuid.uuid4())
         self.fecha_creacion = datetime.now()
+        # El orden importa: primero el mapa, luego el gestor (depende del mapa)
         self._inicializar_mapa()
+        self._inicializar_gestor_zonas()
 
     def _inicializar_mapa(self) -> None:
         """Crea el mapa con las dimensiones configuradas."""
@@ -110,6 +122,16 @@ class Partida:
         )
         self.mapa.limite_x = self.configuracion_mapa.max_x
         self.mapa.limite_y = self.configuracion_mapa.max_y
+
+    def _inicializar_gestor_zonas(self) -> None:
+        """
+        Crea el gestor de zonas sobre el mapa ya inicializado.
+        Distribuye automáticamente 9 zonas (1 IMPERIO + 4 SATRAPÍAS + 4 TRIBUS)
+        escaladas proporcionalmente al tamaño del mapa.
+        """
+        from src.territorio.gestor_zonas import GestorZonas
+        self.gestor_zonas = GestorZonas(self.mapa)
+        print(f"🗺️ [PARTIDA] Zonas inicializadas: {self.gestor_zonas}")
 
     def _inicializar_entidades_juego(self) -> None:
         """
@@ -155,8 +177,6 @@ class Partida:
     # ==========================================
     # CONTROL DE ESTADO
     # ==========================================
-    # src/gestion/partida.py (reemplazar método iniciar_partida existente)
-
     def iniciar_partida(self) -> bool:
         """
         Transiciona la partida de LOBBY a EN_CURSO.
@@ -252,7 +272,8 @@ if __name__ == "__main__":
     print(f"✅ {partida_prod}")
     print(f"   ID: {partida_prod.id[:8]}...")
     print(f"   Creada: {partida_prod.fecha_creacion}")
-    print(f"   Dimensiones del mapa: {partida_prod.mapa.get_dimensiones()}")
+    print(f"   Dimensiones del mapa: {partida_prod.mapa.dimensiones_str}")
+    print(f"   Gestor de zonas: {partida_prod.gestor_zonas}")
 
     # 2. Crear partida en modo desarrollo
     print("\n=== Creando partida en MODO DESARROLLO ===")
@@ -263,9 +284,17 @@ if __name__ == "__main__":
         configuracion_mapa=config_dev
     )
     print(f"✅ {partida_dev}")
-    print(f"   Dimensiones del mapa: {partida_dev.mapa.get_dimensiones()}")
+    print(f"   Dimensiones del mapa: {partida_dev.mapa.dimensiones_str}")
+    print(f"   Gestor de zonas: {partida_dev.gestor_zonas}")
 
-    # 3. Ciclo de vida completo
+    # 3. Verificar zonas generadas
+    print("\n=== Verificando zonas generadas ===")
+    print(partida_dev.gestor_zonas.resumen())
+
+    assert partida_dev.gestor_zonas.total_zonas == 9, "Deben generarse 9 zonas"
+    assert partida_dev.gestor_zonas.total_disponibles == 9, "Todas deben estar libres"
+
+    # 4. Ciclo de vida completo
     print("\n=== Probando ciclo de vida ===")
 
     jugador1 = "Jugador_A"
@@ -299,7 +328,7 @@ if __name__ == "__main__":
     print(f"   Duración: {partida_dev.get_duracion()}")
     print(f"   Estado final: {partida_dev}")
 
-    # 4. Cancelar partida
+    # 5. Cancelar partida
     print("\n=== Probando cancelación ===")
     partida_cancel = Partida("Partida Fallida", "user-789")
     partida_cancel.cancelar_partida("El creador se desconectó")

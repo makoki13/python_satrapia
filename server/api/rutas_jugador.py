@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 
 from server.estado import game_controller
 from src.core.coordenada import Coordenada
+from src.territorio.faccion import TipoFaccion
 from src.usuarios.jugador import Rol
 from src.usuarios.usuario import Usuario
 
@@ -64,15 +65,22 @@ class RespuestaJugador(BaseModel):
     faccion_tipo: str  # "Imperio" | "Reino" | "Tribu"
     capital_nombre: str | None = None
     posicion_inicial: dict | None = None
+    zona_asignada: str | None = None  # ← NUEVO: Información de la zona
+
+
+# ==========================================
+# MAPEO ROL → TIPO FACCIÓN
+# ==========================================
+_ROL_A_TIPO_FACCION: dict[str, TipoFaccion] = {
+    "Emperador": TipoFaccion.IMPERIO,
+    "Sátrapa": TipoFaccion.SATRAPIA,
+    "Jefe Nómada": TipoFaccion.TRIBU,
+}
 
 
 # ==========================================
 # LÓGICA DE CREACIÓN DE FACCIONES
 # ==========================================
-# server/api/rutas_jugador.py (actualizar _crear_faccion_y_capital)
-
-# server/api/rutas_jugador.py (simplificar _crear_faccion_y_capital)
-
 def _crear_faccion_y_capital(
     partida,
     jugador,
@@ -82,7 +90,15 @@ def _crear_faccion_y_capital(
 ) -> dict:
     """
     Crea la entidad política según el rol y la vincula al jugador.
-    Las capitales se crean con almacenes pre-configurados (silos por defecto).
+
+    Las capitales se fundan en el centro de la zona asignada por el GestorZonas
+    de la partida. Si no hay zonas libres del tipo solicitado, se lanza ValueError.
+
+    Returns:
+        Diccionario con datos de la facción creada, incluyendo zona_asignada.
+
+    Raises:
+        ValueError: Si no hay zonas disponibles del tipo solicitado.
     """
     from src.territorio.ciudad import Ciudad
     from src.territorio.punto import Punto
@@ -91,14 +107,20 @@ def _crear_faccion_y_capital(
     rol_enum = Rol(rol_str)
     jugador.asignar_rol(rol_enum)
 
-    # server/api/rutas_jugador.py (solo bloques Emperador y Sátrapa en _crear_faccion_y_capital)
-
+    # ==========================================
+    # CASO 1: EMPERADOR (zona IMPERIO)
+    # ==========================================
     if rol_str == "Emperador":
+        zona = partida.gestor_zonas.asignar_zona(TipoFaccion.IMPERIO)
+        if zona is None:
+            raise ValueError("No hay zonas de Imperio disponibles en el mapa.")
+
+        coord = zona.coordenada_central
+
         from src.economia.edificios.palacio import Palacio
         reino = Reino(nombre=nombre_faccion, es_imperial=True)
         partida.reinos.append(reino)
 
-        coord = Coordenada(3, 3)
         capital = Ciudad(
             nombre=f"Capital de {nombre_faccion}",
             ubicacion=coord,
@@ -114,24 +136,39 @@ def _crear_faccion_y_capital(
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 
-        partida.mapa.puntos[coord] = Punto(
-            coordenada=coord, estructura=capital, propietario=reino
-        )
+        # ✅ Usar el método seguro registrar_punto del mapa
+        punto = Punto(coordenada=coord, estructura=capital, propietario=reino)
+        partida.mapa.registrar_punto(punto, sobrescribir=True)
+
         jugador.asignar_faccion(reino)
+
+        logger.info(
+            f"🏛️  [JUGADOR] {jugador.nombre_partida} fundó {capital.nombre} "
+            f"en {coord} (zona {zona.tipo_faccion.value})"
+        )
 
         return {
             "faccion_nombre": nombre_faccion,
             "faccion_tipo": "Imperio",
             "capital_nombre": capital.nombre,
-            "posicion_inicial": None,
+            "posicion_inicial": {"x": coord.x, "y": coord.y},
+            "zona_asignada": str(zona),
         }
 
+    # ==========================================
+    # CASO 2: SÁTRAPA (zona SATRAPIA)
+    # ==========================================
     elif rol_str == "Sátrapa":
+        zona = partida.gestor_zonas.asignar_zona(TipoFaccion.SATRAPIA)
+        if zona is None:
+            raise ValueError("No hay zonas de Satrapía disponibles en el mapa.")
+
+        coord = zona.coordenada_central
+
         from src.economia.edificios.palacio import Palacio
         reino = Reino(nombre=nombre_faccion, es_imperial=False)
         partida.reinos.append(reino)
 
-        coord = Coordenada(1, 1)
         capital = Ciudad(
             nombre=f"Capital de {nombre_faccion}",
             ubicacion=coord,
@@ -146,42 +183,66 @@ def _crear_faccion_y_capital(
         reino.fundar_ciudad(capital)
         partida.ciudades.append(capital)
 
-        partida.mapa.puntos[coord] = Punto(
-            coordenada=coord, estructura=capital, propietario=reino
-        )
+        punto = Punto(coordenada=coord, estructura=capital, propietario=reino)
+        partida.mapa.registrar_punto(punto, sobrescribir=True)
+
         jugador.asignar_faccion(reino)
+
+        logger.info(
+            f"🏰 [JUGADOR] {jugador.nombre_partida} fundó {capital.nombre} "
+            f"en {coord} (zona {zona.tipo_faccion.value})"
+        )
 
         return {
             "faccion_nombre": nombre_faccion,
             "faccion_tipo": "Reino",
             "capital_nombre": capital.nombre,
-            "posicion_inicial": None,
+            "posicion_inicial": {"x": coord.x, "y": coord.y},
+            "zona_asignada": str(zona),
         }
 
+    # ==========================================
+    # CASO 3: JEFE NÓMADA (zona TRIBU)
+    # ==========================================
+    # server/api/rutas_jugador.py (sección Jefe Nómada)
+
+    # server/api/rutas_jugador.py (sección Jefe Nómada, alrededor de línea 177)
+
     elif rol_str == "Jefe Nómada":
-        assert posicion_inicial is not None
-        coord = Coordenada(posicion_inicial["x"], posicion_inicial["y"])
+        zona = partida.gestor_zonas.asignar_zona(TipoFaccion.TRIBU)
+        if zona is None:
+            raise ValueError("No hay zonas de Tribu disponibles en el mapa.")
 
-        try:
-            from src.territorio.tribu import Tribu
-            tribu = Tribu(nombre=nombre_faccion, ubicacion_actual=coord)
-        except ImportError:
-            tribu = type("Tribu", (), {
-                "nombre": nombre_faccion,
-                "ubicacion_actual": coord,
-            })()
+        # El nómada usa el centro de la zona si no se especifica posición manual
+        if posicion_inicial is not None:
+            coord = Coordenada(posicion_inicial["x"], posicion_inicial["y"])
+        else:
+            coord = zona.coordenada_central
 
-        partida.mapa.puntos[coord] = Punto(coordenada=coord, propietario=tribu)
+        # ✅ Import directo, sin fallback problemático
+        from src.territorio.tribu import Tribu
+        tribu = Tribu(nombre=nombre_faccion, ubicacion_actual=coord)
+
+        punto = Punto(coordenada=coord, propietario=tribu)
+        partida.mapa.registrar_punto(punto, sobrescribir=True)
+
         jugador.asignar_faccion(tribu)
+
+        logger.info(
+            f"🏕️  [JUGADOR] {jugador.nombre_partida} estableció campamento "
+            f"en {coord} (zona {zona.tipo_faccion.value})"
+        )
 
         return {
             "faccion_nombre": nombre_faccion,
             "faccion_tipo": "Tribu",
             "capital_nombre": None,
             "posicion_inicial": {"x": coord.x, "y": coord.y},
+            "zona_asignada": str(zona),
         }
 
     raise ValueError(f"Rol no soportado: {rol_str}")
+
 
 # ==========================================
 # ENDPOINTS DE JUGADOR
@@ -226,7 +287,11 @@ async def unirse_a_partida(request: UnirsePartidaRequest):
             nombre_faccion=request.nombre_faccion,
             posicion_inicial=request.posicion_inicial,
         )
+    except ValueError as e:
+        # ✅ Capturamos específicamente "no hay zonas libres"
+        raise HTTPException(status_code=409, detail=str(e)) from None
     except Exception as e:
+        logger.exception("Error inesperado creando facción")
         raise HTTPException(
             status_code=500, detail=f"Error creando facción: {e}"
         ) from None
@@ -244,6 +309,7 @@ async def unirse_a_partida(request: UnirsePartidaRequest):
         faccion_tipo=datos_faccion["faccion_tipo"],
         capital_nombre=datos_faccion.get("capital_nombre"),
         posicion_inicial=datos_faccion.get("posicion_inicial"),
+        zona_asignada=datos_faccion.get("zona_asignada"),
     )
 
 
