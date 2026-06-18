@@ -102,7 +102,7 @@ class Transporte:
 
             # Verificar viabilidad del siguiente punto
             punto = mapa.puntos.get(siguiente_coord)
-            if not punto or not punto.es_transitable():
+            if not punto or not punto.es_transitable:
                 return False, (
                     f"⛔ Transporte {self.id}: ruta bloqueada en {siguiente_coord}. "
                     f"Terreno intransitable."

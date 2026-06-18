@@ -49,7 +49,7 @@ class GPS:
         else:
             # Caso 2: Existe → Verificar transitabilidad
             punto_existente = mapa.puntos[coord]
-            if not punto_existente.es_transitable():
+            if not punto_existente.es_transitable:
                 logger.info(
                     "🔧 GPS: Reemplazando punto no transitable %s (%s) por LLANURA",
                     coord, punto_existente.terreno
@@ -101,7 +101,7 @@ class GPS:
             )
             return None
 
-        if not punto_destino.es_transitable():
+        if not punto_destino.es_transitable:
             logger.warning("GPS: Destino no transitable: %s", destino)
             return None
 
@@ -151,12 +151,12 @@ class GPS:
                 if vecino_punto is None:
                     continue
 
-                if not vecino_punto.es_transitable():
+                if not vecino_punto.es_transitable:
                     continue
 
                 # Coste = coste_movimiento del terreno destino
                 # Diagonal cuesta ×1.41 para evitar zigzags artificiales
-                coste_base = vecino_punto.get_coste_movimiento()
+                coste_base = vecino_punto.coste_movimiento
                 es_diagonal = dx != 0 and dy != 0
                 coste_movimiento = coste_base * (1.41 if es_diagonal else 1.0)
 
