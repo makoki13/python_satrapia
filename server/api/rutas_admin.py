@@ -175,6 +175,76 @@ async def avanzar_turno_admin(partida_id: str, request: AvanzarTurnoRequest):
 # ==========================================
 # ENDPOINTS DE CONSTRUCCIÓN
 # ==========================================
+# ==========================================
+# ENDPOINTS DE CONSTRUCCIÓN
+# ==========================================
+def _asegurar_corredor_gps(partida, coord_origen: Coordenada, coord_destino: Coordenada, propietario) -> int:
+    """
+    Garantiza que existe un corredor de puntos entre dos coordenadas
+    para que el pathfinding A* pueda calcular la ruta.
+
+    Crea todos los puntos en el bounding box (origen, destino) + margen de 1 celda.
+
+    Args:
+        partida: Partida activa.
+        coord_origen: Coordenada del edificio (granja/serrería).
+        coord_destino: Coordenada de la capital.
+        propietario: Reino propietario de los puntos.
+
+    Returns:
+        Número de puntos creados en el corredor.
+    """
+    from src.territorio.punto import Punto
+
+    # Bounding box con margen de 1 celda para que A* tenga vecinos transitables
+    min_x = max(0, min(coord_origen.x, coord_destino.x) - 1)
+    max_x = min(partida.mapa.limite_x - 1, max(coord_origen.x, coord_destino.x) + 1)
+    min_y = max(0, min(coord_origen.y, coord_destino.y) - 1)
+    max_y = min(partida.mapa.limite_y - 1, max(coord_origen.y, coord_destino.y) + 1)
+
+    creados = 0
+    for rx in range(min_x, max_x + 1):
+        for ry in range(min_y, max_y + 1):
+            c = Coordenada(rx, ry)
+            # Solo crear si no existe ya
+            if partida.mapa.obtener_punto(c) is None:
+                punto = Punto(coordenada=c, propietario=propietario)
+                if partida.mapa.registrar_punto(punto):
+                    creados += 1
+
+    return creados
+
+
+def _debug_ruta(partida, coord_origen: Coordenada, coord_destino: Coordenada) -> list[str]:
+    """
+    Genera información de debug de los puntos clave de la ruta
+    origen → destino (línea recta).
+    """
+    puntos_clave = []
+    check_x, check_y = coord_origen.x, coord_origen.y
+    dest_x, dest_y = coord_destino.x, coord_destino.y
+
+    while (check_x, check_y) != (dest_x, dest_y):
+        c = Coordenada(check_x, check_y)
+        punto = partida.mapa.obtener_punto(c)
+        existe = punto is not None
+        # ✅ es_transitable es @property (sin paréntesis)
+        transitable = punto.es_transitable if existe else False
+        puntos_clave.append(f"{c}: ex={existe}, tr={transitable}")
+
+        # Avanzar hacia el destino
+        if check_x < dest_x:
+            check_x += 1
+        elif check_x > dest_x:
+            check_x -= 1
+        elif check_y < dest_y:
+            check_y += 1
+        elif check_y > dest_y:
+            check_y -= 1
+
+    return puntos_clave
+
+
 @router.post("/edificios/construir", response_model=dict)
 async def construir_edificio(request: ConstruirEdificioRequest):  # noqa: C901
     """Construye un edificio productivo en una posición del mapa."""
@@ -195,9 +265,25 @@ async def construir_edificio(request: ConstruirEdificioRequest):  # noqa: C901
 
     coord = Coordenada(request.coordenada["x"], request.coordenada["y"])
 
+    # Validar que la coordenada está dentro del mapa
+    if not partida.mapa.es_coordenada_valida(coord):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Coordenada {coord} fuera de los límites del mapa",
+        )
+
+    # Tipos soportados
+    if request.tipo not in ("granja", "serreria"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de edificio '{request.tipo}' no soportado",
+        )
+
+    # ==========================================
+    # CREAR EDIFICIO SEGÚN TIPO
+    # ==========================================
     if request.tipo == "granja":
         from src.economia.edificios.granja import Granja
-        from src.territorio.punto import Punto
 
         granja = Granja.crear(
             nombre=f"Granja de {request.ciudad_nombre}",
@@ -205,74 +291,10 @@ async def construir_edificio(request: ConstruirEdificioRequest):  # noqa: C901
             capacidad_silo=request.capacidad_silo,
         )
         ciudad.granjas.append(granja)
-
-        # ✅ Registrar CORREDOR de puntos alrededor de la ruta granja → capital
-        # A* usa 8 direcciones; necesitamos puntos adyacentes para que no falle
-        dest_x, dest_y = ciudad.ubicacion.x, ciudad.ubicacion.y
-
-        # Calcular bounding box de la ruta + margen de 1 celda
-        min_x = max(0, min(coord.x, dest_x) - 1)
-        max_x = min(partida.mapa.limite_x - 1, max(coord.x, dest_x) + 1)
-        min_y = max(0, min(coord.y, dest_y) - 1)
-        max_y = min(partida.mapa.limite_y - 1, max(coord.y, dest_y) + 1)
-
-        for rx in range(min_x, max_x + 1):
-            for ry in range(min_y, max_y + 1):
-                c = Coordenada(rx, ry)
-                if c not in partida.mapa.puntos:
-                    partida.mapa.puntos[c] = Punto(
-                        coordenada=c,
-                        propietario=ciudad.reino_propietario,
-                    )
-
-        # Asegurar que el punto de destino existe con estructura
-        if ciudad.ubicacion not in partida.mapa.puntos:
-            partida.mapa.puntos[ciudad.ubicacion] = Punto(
-                coordenada=ciudad.ubicacion,
-                estructura=ciudad,
-                propietario=ciudad.reino_propietario,
-            )
-
-        # 🔍 DEBUG TEMPORAL: Verificar puntos clave de la ruta
-        puntos_clave = []
-        check_x, check_y = coord.x, coord.y
-        while (check_x, check_y) != (dest_x, dest_y):
-            c = Coordenada(check_x, check_y)
-            existe = c in partida.mapa.puntos
-            transitable = partida.mapa.puntos[c].es_transitable() if existe else False
-            puntos_clave.append(f"{c}: ex={existe}, tr={transitable}")
-            if check_x < dest_x:
-                check_x += 1
-            elif check_x > dest_x:
-                check_x -= 1
-            elif check_y < dest_y:
-                check_y += 1
-            elif check_y > dest_y:
-                check_y -= 1
-
-        logger.info(
-            "🗺️ Ruta granja→capital (%d puntos clave): %s",
-            len(puntos_clave), puntos_clave,
-        )
-        logger.info(
-            "🗺️ Corredor registrado: (%d,%d) a (%d,%d) = %d puntos",
-            min_x, min_y, max_x, max_y,
-            (max_x - min_x + 1) * (max_y - min_y + 1),
-        )
-
-        return {
-            "exito": True,
-            "mensaje": f"Granja creada en ({coord.x}, {coord.y})",
-            "edificio": "granja",
-            "coordenada": {"x": coord.x, "y": coord.y},
-            "silo_capacidad": request.capacidad_silo,
-            "ciudad": request.ciudad_nombre,
-        }
-    # server/api/rutas_admin.py (añadir tras el "if request.tipo == 'granja':")
+        emoji = "🌾"
 
     elif request.tipo == "serreria":
         from src.economia.edificios.serreria import Serreria
-        from src.territorio.punto import Punto
 
         serreria = Serreria.crear(
             nombre=f"Serrería de {request.ciudad_nombre}",
@@ -280,38 +302,50 @@ async def construir_edificio(request: ConstruirEdificioRequest):  # noqa: C901
             capacidad_silo=request.capacidad_silo,
         )
         ciudad.serrerias.append(serreria)
+        emoji = "🪵"
 
-        # Mismo corredor GPS que la granja
-        dest_x, dest_y = ciudad.ubicacion.x, ciudad.ubicacion.y
-        min_x = max(0, min(coord.x, dest_x) - 1)
-        max_x = min(partida.mapa.limite_x - 1, max(coord.x, dest_x) + 1)
-        min_y = max(0, min(coord.y, dest_y) - 1)
-        max_y = min(partida.mapa.limite_y - 1, max(coord.y, dest_y) + 1)
+    # ==========================================
+    # ASEGURAR CORREDOR GPS (común a ambos tipos)
+    # ==========================================
+    creados = _asegurar_corredor_gps(
+        partida=partida,
+        coord_origen=coord,
+        coord_destino=ciudad.ubicacion,
+        propietario=ciudad.reino_propietario,
+    )
 
-        for rx in range(min_x, max_x + 1):
-            for ry in range(min_y, max_y + 1):
-                c = Coordenada(rx, ry)
-                if c not in partida.mapa.puntos:
-                    partida.mapa.puntos[c] = Punto(
-                        coordenada=c,
-                        propietario=ciudad.reino_propietario,
-                    )
+    # Asegurar que el punto de la capital existe (con estructura=ciudad)
+    from src.territorio.punto import Punto
 
-        if ciudad.ubicacion not in partida.mapa.puntos:
-            partida.mapa.puntos[ciudad.ubicacion] = Punto(
-                coordenada=ciudad.ubicacion,
-                estructura=ciudad,
-                propietario=ciudad.reino_propietario,
-            )
+    punto_capital = partida.mapa.obtener_punto(ciudad.ubicacion)
+    if punto_capital is None:
+        punto_capital = Punto(
+            coordenada=ciudad.ubicacion,
+            estructura=ciudad,
+            propietario=ciudad.reino_propietario,
+        )
+        partida.mapa.registrar_punto(punto_capital, sobrescribir=True)
 
-        return {
-            "exito": True,
-            "mensaje": f"Serrería creada en ({coord.x}, {coord.y})",
-            "edificio": "serreria",
-            "coordenada": {"x": coord.x, "y": coord.y},
-            "silo_capacidad": request.capacidad_silo,
-            "ciudad": request.ciudad_nombre,
-        }
+    # Debug temporal de la ruta
+    puntos_clave = _debug_ruta(partida, coord, ciudad.ubicacion)
+    logger.info(
+        "%s Ruta %s→capital (%d puntos clave): %s",
+        emoji, request.tipo, len(puntos_clave), puntos_clave,
+    )
+    logger.info(
+        "%s Corredor GPS: %d puntos nuevos registrados",
+        emoji, creados,
+    )
+
+    return {
+        "exito": True,
+        "mensaje": f"{request.tipo.capitalize()} creada en ({coord.x}, {coord.y})",
+        "edificio": request.tipo,
+        "coordenada": {"x": coord.x, "y": coord.y},
+        "silo_capacidad": request.capacidad_silo,
+        "ciudad": request.ciudad_nombre,
+        "puntos_corredor_creados": creados,
+    }
 
     raise HTTPException(
         status_code=400,

@@ -13,6 +13,12 @@ from server.config import settings
 from server.estado import game_controller
 from server.websocket.gestor_ws import manager
 
+logging.getLogger("watchfiles.main").setLevel(logging.WARNING)
+logging.getLogger("watchfiles.watcher").setLevel(logging.WARNING)
+# logging.getLogger("uvicorn.access").setLevel(logging.WARNING)  # Opcional: silencia requests HTTP
+
+app = FastAPI(title="Satrapia API")
+
 # Configurar logging
 logging.basicConfig(
     level=logging.INFO,

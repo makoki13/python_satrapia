@@ -18,3 +18,6 @@ class EntidadPolitica(Protocol):
     automáticamente (subtipado estructural).
     """
     nombre: str
+
+if __name__ == "__main__":
+    print("No hay pruebas")

@@ -419,9 +419,11 @@ def handler_nueva_partida():  # noqa: C901
             print("      n.- No, lo haré después")
             crear_emp = esperar_opcion(["s", "n"])
 
+            coord_imperial = None
+            coord_satrapa = None
+
             if crear_emp == "s":
-                _crear_emperador_automatico(partida_id, nombre)
-                hay_satrapa = False
+                coord_imperial = _crear_emperador_automatico(partida_id, nombre)
 
                 # Lógica específica para modo PRODUCCIÓN (requiere 2 jugadores)
                 if not modo_desarrollo:
@@ -431,8 +433,7 @@ def handler_nueva_partida():  # noqa: C901
                     print("      n.- No, la partida quedará en LOBBY")
                     crear_sat = esperar_opcion(["s", "n"])
                     if crear_sat == "s":
-                        _crear_satrapa_automatico(partida_id)
-                        hay_satrapa = True  # ✅ Marcar que hay sátrapa
+                        coord_satrapa = _crear_satrapa_automatico(partida_id)
                     else:
                         print("   ℹ️  Partida creada en LOBBY. Añade jugadores manualmente antes de iniciar.")
                         pausa()
@@ -445,7 +446,11 @@ def handler_nueva_partida():  # noqa: C901
                 iniciar = esperar_opcion(["s", "n"])
 
                 if iniciar == "s":
-                    _iniciar_partida(partida_id, con_satrapa=hay_satrapa)  # ✅ Pasar flag
+                    _iniciar_partida(
+                        partida_id,
+                        coord_imperial=coord_imperial,
+                        coord_satrapa=coord_satrapa,
+                    )
 
         else:
             print(f"\n   ❌ Error al crear partida [{resp.status_code}]:")
@@ -460,8 +465,13 @@ def handler_nueva_partida():  # noqa: C901
     pausa()
 
 
-def _crear_emperador_automatico(partida_id: str, nombre_partida: str):
-    """Crea un emperador por defecto para la partida recién creada."""
+def _crear_emperador_automatico(partida_id: str, nombre_partida: str) -> dict | None:
+    """
+    Crea un emperador por defecto para la partida recién creada.
+
+    Returns:
+        Diccionario con posicion_inicial {"x": int, "y": int} o None si falla.
+    """
     print("\n   ⏳ Creando Emperador...")
     cliente = httpx.Client(base_url=BASE_URL, timeout=10.0)
 
@@ -482,15 +492,27 @@ def _crear_emperador_automatico(partida_id: str, nombre_partida: str):
             print(f"      👤 Personaje: {datos['jugador_nombre']}")
             print(f"      🏛️  Facción: {datos['faccion_nombre']}")
             print(f"      🏙️  Capital: {datos['capital_nombre']}")
+
+            posicion = datos.get("posicion_inicial")
+            if posicion:
+                print(f"      📍 Posición: ({posicion['x']}, {posicion['y']})")
+            return posicion
         else:
             print(f"   ❌ Error al crear emperador [{resp.status_code}]:")
             print(f"      {resp.text}")
+            return None
 
     except Exception as e:
         print(f"   ❌ Error inesperado: {e}")
+        return None
 
-def _crear_satrapa_automatico(partida_id: str):
-    """Crea un sátrapa por defecto para cumplir el requisito de 2 jugadores en producción."""
+def _crear_satrapa_automatico(partida_id: str) -> dict | None:
+    """
+    Crea un sátrapa por defecto para cumplir el requisito de 2 jugadores en producción.
+
+    Returns:
+        Diccionario con posicion_inicial {"x": int, "y": int} o None si falla.
+    """
     print("\n   ⏳ Creando Sátrapa...")
     cliente = httpx.Client(base_url=BASE_URL, timeout=10.0)
     try:
@@ -509,14 +531,32 @@ def _crear_satrapa_automatico(partida_id: str):
             print(f"      👤 Personaje: {datos['jugador_nombre']}")
             print(f"      🏛️  Facción: {datos['faccion_nombre']}")
             print(f"      🏙️  Capital: {datos['capital_nombre']}")
+
+            posicion = datos.get("posicion_inicial")
+            if posicion:
+                print(f"      📍 Posición: ({posicion['x']}, {posicion['y']})")
+            return posicion
         else:
             print(f"   ❌ Error al crear sátrapa [{resp.status_code}]: {resp.text}")
+            return None
     except Exception as e:
         print(f"   ❌ Error inesperado: {e}")
+        return None
 
 
-def _iniciar_partida(partida_id: str, con_satrapa: bool = False):
-    """Inicia la partida (transición LOBBY → EN_CURSO)."""
+def _iniciar_partida(
+    partida_id: str,
+    coord_imperial: dict | None = None,
+    coord_satrapa: dict | None = None,
+):
+    """
+    Inicia la partida (transición LOBBY → EN_CURSO).
+
+    Args:
+        partida_id: ID de la partida a iniciar.
+        coord_imperial: Coordenadas de la capital imperial {"x": int, "y": int}.
+        coord_satrapa: Coordenadas de la capital del sátrapa (opcional).
+    """
     print("\n   ⏳ Iniciando partida...")
     cliente = httpx.Client(base_url=BASE_URL, timeout=10.0)
 
@@ -534,29 +574,34 @@ def _iniciar_partida(partida_id: str, con_satrapa: bool = False):
             construir = esperar_opcion(["s", "n"])
 
             if construir == "s":
-                print("\n   🏗️  Construyendo edificios iniciales...")
-
-                # ✅ Capital Imperial (coordenada 3,3 según rutas_jugador.py)
-                ciudad_imperial = "Capital de Imperio Aqueménida"
-                coord_imperial = {"x": 3, "y": 3}
-                c1, t1 = _construir_edificios_para_ciudad(partida_id, ciudad_imperial, coord_imperial)
-
-                # ✅ Capital del Sátrapa (coordenada 1,1 según rutas_jugador.py)
-                if con_satrapa:
-                    ciudad_satrapa = "Capital de Reino de Media"
-                    coord_satrapa = {"x": 1, "y": 1}
-                    c2, t2 = _construir_edificios_para_ciudad(partida_id, ciudad_satrapa, coord_satrapa)
-                    total_construidos = c1 + c2
-                    total_esperados = t1 + t2
+                # Validar que tenemos coordenadas
+                if coord_imperial is None:
+                    print("\n   ⚠️  No se pudo obtener la posición de la capital imperial.")
+                    print("      No se construirán edificios automáticamente.")
                 else:
-                    total_construidos = c1
-                    total_esperados = t1
+                    print("\n   🏗️  Construyendo edificios iniciales...")
 
-                if total_construidos == total_esperados:
-                    print(f"\n   ✅ {total_construidos}/{total_esperados} edificios construidos correctamente.")
-                    print("   🚛 Los transportes automáticos comenzarán en el turno 5.")
-                else:
-                    print(f"\n   ⚠️  Solo se construyeron {total_construidos}/{total_esperados} edificios.")
+                    ciudad_imperial = "Capital de Imperio Aqueménida"
+                    c1, t1 = _construir_edificios_para_ciudad(
+                        partida_id, ciudad_imperial, coord_imperial
+                    )
+
+                    if coord_satrapa is not None:
+                        ciudad_satrapa = "Capital de Reino de Media"
+                        c2, t2 = _construir_edificios_para_ciudad(
+                            partida_id, ciudad_satrapa, coord_satrapa
+                        )
+                        total_construidos = c1 + c2
+                        total_esperados = t1 + t2
+                    else:
+                        total_construidos = c1
+                        total_esperados = t1
+
+                    if total_construidos == total_esperados:
+                        print(f"\n   ✅ {total_construidos}/{total_esperados} edificios construidos correctamente.")
+                        print("   🚛 Los transportes automáticos comenzarán en el turno 5.")
+                    else:
+                        print(f"\n   ⚠️  Solo se construyeron {total_construidos}/{total_esperados} edificios.")
 
             print("\n   🎮 La partida está lista.")
             print("      Monitor en tiempo real:")
@@ -797,7 +842,7 @@ def _avanzar_turnos(partida: dict[str, Any]):  # noqa: C901
 
     pausa()
 
-def handler_setup_rapido():
+def handler_setup_rapido():  # noqa: C901
     """Crea una partida de pruebas completa en un solo paso."""
     print("\n" + "=" * 60)
     print("⚡ SETUP RÁPIDO - MUNDO DE PRUEBAS")
@@ -852,7 +897,12 @@ def handler_setup_rapido():
             print(f"   ❌ Error al crear emperador: {resp.text}")
             pausa()
             return
+
+        datos = resp.json()
+        coord_imperial = datos.get("posicion_inicial")
         print("   ✅ Emperador creado")
+        if coord_imperial:
+            print(f"      📍 Capital en ({coord_imperial['x']}, {coord_imperial['y']})")
     except Exception as e:
         print(f"   ❌ Error: {e}")
         pausa()
@@ -873,9 +923,13 @@ def handler_setup_rapido():
         return
 
     # 4. Construir edificios SOLO para capital imperial (setup rápido = 1 jugador)
+    if coord_imperial is None:
+        print("   ⚠️  No se pudo obtener la posición de la capital. No se construirán edificios.")
+        pausa()
+        return
+
     print("   🏗️  Construyendo edificios...")
     ciudad_imperial = "Capital de Imperio Aqueménida"
-    coord_imperial = {"x": 3, "y": 3}
     c, t = _construir_edificios_para_ciudad(partida_id, ciudad_imperial, coord_imperial)
 
     if c == t:
