@@ -14,8 +14,9 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
+import qasync  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtWidgets import (  # noqa: E402
     QApplication,
     QGroupBox,
     QLabel,
@@ -23,10 +24,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-import qasync
 
-from client.core.game_state import game_state
-from client.ui.splash_screen import SplashScreen
+from client.core.game_state import game_state  # noqa: E402
+from client.ui.splash_screen import SplashScreen  # noqa: E402
 
 
 class MainWindow(QMainWindow):
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
     # ==========================================
     def _on_jugador_asignado(self, datos: dict) -> None:
         """Se ejecuta cuando el jugador se une exitosamente a la partida."""
-        print(f"🔄 MainWindow: refrescando datos de jugador")
+        print("🔄 MainWindow: refrescando datos de jugador")
 
         # Actualizar título de la ventana
         self.setWindowTitle(f"Satrapia - {game_state.username or 'Jugador'}")
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
 
     def _on_partida_actualizada(self, datos: dict) -> None:
         """Se ejecuta cuando los datos de la partida se actualizan."""
-        print(f"🔄 MainWindow: refrescando datos de partida")
+        print("🔄 MainWindow: refrescando datos de partida")
 
         partida_id = game_state.partida_id
         id_display = partida_id[:8] + "..." if partida_id else None
@@ -244,9 +244,9 @@ def main():
 
     splash.show()
 
-    print(f"✅ Estado global inicializado: {type(game_state).__name__}")
-    print(f"✅ Event loop: qasync (Qt + asyncio integrados)")
-    print(f"🖥️  Splash screen mostrada (esperando servidor)")
+    print("✅ Estado global inicializado: {type(game_state).__name__}")
+    print("✅ Event loop: qasync (Qt + asyncio integrados)")
+    print("🖥️  Splash screen mostrada (esperando servidor)")
     print("-" * 60)
 
     with loop:
