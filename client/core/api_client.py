@@ -161,21 +161,8 @@ class ApiClient:
         nombre_faccion: str,
         posicion_inicial: dict[str, int] | None = None,
     ) -> dict[str, Any] | None:
-        """
-        Une el jugador local a una partida.
-
-        El servidor se encarga de:
-            - Crear la facción (Reino/Tribu)
-            - Asignar zona dinámica
-            - Fundar capital en el centro de la zona
-            - Registrar el punto en el mapa
-
-        Returns:
-            Diccionario con datos del jugador o None si falla.
-        """
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-                # ✅ Declarar tipo explícito que permite valores mixtos
                 payload: dict[str, str | dict[str, int]] = {
                     "partida_id": partida_id,
                     "username": username,
@@ -192,8 +179,25 @@ class ApiClient:
 
                 if resp.is_success:
                     datos = resp.json()
-                    game_state.set_partida({"id": partida_id, "dimensiones_mapa": "200x200"})
+
+                    # ✅ Obtener dimensiones reales desde la lista de partidas
+                    dimensiones_mapa = "200x200"  # Default
+                    partidas_resp = await client.get("/admin/partidas")
+                    if partidas_resp.is_success:
+                        for p in partidas_resp.json():
+                            if p["id"] == partida_id:
+                                dimensiones_mapa = p.get("dimensiones_mapa", "200x200")
+                                break
+
+                    game_state.set_partida({
+                        "id": partida_id,
+                        "dimensiones_mapa": dimensiones_mapa,
+                    })
                     game_state.set_jugador(datos)
+
+                    # ✅ Guardar también username (no viene en la respuesta del servidor)
+                    game_state.username = username
+
                     logger.info("✅ Jugador unido: %s (%s)", datos["jugador_nombre"], datos["rol"])
                     return datos
                 else:

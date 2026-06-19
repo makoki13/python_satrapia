@@ -222,7 +222,7 @@ def handler_arrancar_servidor():
         pausa()
         return
 
-    print("\n   🚀 Arrancando servidor Satrapia...")
+        print("\n   🚀 Arrancando servidor Satrapia...")
     try:
         python_exec = sys.executable
         cmd = [
@@ -232,6 +232,11 @@ def handler_arrancar_servidor():
             "--port", str(SERVER_PORT),
             "--reload",
         ]
+
+        # ✅ NUEVO: Vaciar el log antes de arrancar (solo al inicio, no en reloads)
+        if SERVER_LOG_FILE.exists():
+            SERVER_LOG_FILE.write_text("", encoding="utf-8")
+            print(f"   🗑️  Log anterior vaciado: {SERVER_LOG_FILE.name}")
 
         log_file = open(SERVER_LOG_FILE, "a", encoding="utf-8")
 

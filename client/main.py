@@ -2,39 +2,20 @@
 """
 Punto de entrada del cliente Satrapia (PySide6).
 
-Flujo de ejecución:
-    1. Inicializa QApplication y configuración global.
-    2. Muestra SplashScreen:
-       - Detecta el servidor automáticamente.
-       - Lista partidas disponibles (en LOBBY).
-       - Usuario selecciona partida y se une.
-       - El SERVIDOR crea la facción, asigna zona y funda capital.
-    3. Al recibir señal partida_lista, cierra el splash y abre MainWindow.
-    4. MainWindow muestra el estado del juego (placeholder visual por ahora).
-
-Uso:
-    python client/main.py
+Usa qasync para integrar el event loop de Qt con asyncio.
+MainWindow se suscribe a señales de GameState para refrescarse automáticamente
+cuando los datos del jugador y partida estén disponibles.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# ==========================================
-# CONFIGURACIÓN DE PATH
-# ==========================================
-# Añadir la raíz del proyecto al sys.path para poder importar:
-#   - src/      (core del juego, compartido con el servidor)
-#   - server/   (por si se necesita algún helper)
-#   - client/   (módulos del propio cliente)
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-# ==========================================
-# IMPORTS DE PYSIDE6
-# ==========================================
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QApplication,
     QGroupBox,
     QLabel,
@@ -42,25 +23,18 @@ from PySide6.QtWidgets import (  # noqa: E402
     QVBoxLayout,
     QWidget,
 )
+import qasync
 
-# ==========================================
-# IMPORTS DEL CLIENTE
-# ==========================================
-from client.core.game_state import game_state  # noqa: E402
-from client.ui.splash_screen import SplashScreen  # noqa: E402
+from client.core.game_state import game_state
+from client.ui.splash_screen import SplashScreen
 
 
 class MainWindow(QMainWindow):
     """
     Ventana principal del juego.
 
-    Por ahora es un placeholder que muestra los datos del jugador
-    obtenidos tras la unión exitosa a la partida.
-
-    En futuras fases contendrá:
-        - MapWidget (renderizado del mapa)
-        - Panel lateral (ciudad, edificios, recursos)
-        - Barra superior (turno, acciones)
+    Se suscribe a las señales de GameState para refrescar sus labels
+    cuando los datos del jugador/partida lleguen del servidor.
     """
 
     def __init__(self):
@@ -74,7 +48,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
 
-        # ── Cabecera: Estado de conexión ───────────────────────────────
+        # ── Cabecera ───────────────────────────────────────────────────
         self.label_estado = QLabel("🟢 Conectado y en juego")
         self.label_estado.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_estado.setStyleSheet(
@@ -82,93 +56,52 @@ class MainWindow(QMainWindow):
         )
         layout.addWidget(self.label_estado)
 
-        # ── Grupo: Datos del Jugador ───────────────────────────────────
+        # ── Grupo Jugador ──────────────────────────────────────────────
         grupo_jugador = QGroupBox("👤 Jugador")
-        grupo_jugador.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 16px;
-                border: 2px solid #3498db;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
-                color: #2c3e50;
-            }
-        """)
+        grupo_jugador.setStyleSheet(self._grupo_style("#3498db"))
         layout_jugador = QVBoxLayout(grupo_jugador)
 
-        # Labels con datos del jugador (leídos de game_state)
-        self._crear_label_jugador(layout_jugador, "Username", game_state.username)
-        self._crear_label_jugador(layout_jugador, "Personaje", self._personaje_display())
-        self._crear_label_jugador(layout_jugador, "Rol", game_state.rol)
+        # Guardar referencias a los labels para poder refrescarlos
+        self.label_username = self._crear_label("Username", None)
+        self.label_personaje = self._crear_label("Personaje", None)
+        self.label_rol = self._crear_label("Rol", None)
 
+        layout_jugador.addWidget(self.label_username)
+        layout_jugador.addWidget(self.label_personaje)
+        layout_jugador.addWidget(self.label_rol)
         layout.addWidget(grupo_jugador)
 
-        # ── Grupo: Facción y Capital ───────────────────────────────────
+        # ── Grupo Facción ──────────────────────────────────────────────
         grupo_faccion = QGroupBox("🏛️ Facción")
-        grupo_faccion.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 16px;
-                border: 2px solid #9b59b6;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
-                color: #2c3e50;
-            }
-        """)
+        grupo_faccion.setStyleSheet(self._grupo_style("#9b59b6"))
         layout_faccion = QVBoxLayout(grupo_faccion)
 
-        self._crear_label_jugador(layout_faccion, "Tipo", self._tipo_faccion_display())
-        self._crear_label_jugador(layout_faccion, "Nombre", game_state.faccion_nombre)
-        self._crear_label_jugador(layout_faccion, "Capital", game_state.capital_nombre)
-        self._crear_label_jugador(layout_faccion, "Posición", self._posicion_display())
+        self.label_tipo_faccion = self._crear_label("Tipo", None)
+        self.label_nombre_faccion = self._crear_label("Nombre", None)
+        self.label_capital = self._crear_label("Capital", None)
+        self.label_posicion = self._crear_label("Posición", None)
 
+        layout_faccion.addWidget(self.label_tipo_faccion)
+        layout_faccion.addWidget(self.label_nombre_faccion)
+        layout_faccion.addWidget(self.label_capital)
+        layout_faccion.addWidget(self.label_posicion)
         layout.addWidget(grupo_faccion)
 
-        # ── Grupo: Información de la Partida ───────────────────────────
+        # ── Grupo Partida ──────────────────────────────────────────────
         grupo_partida = QGroupBox("🎲 Partida")
-        grupo_partida.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 16px;
-                border: 2px solid #e67e22;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
-                color: #2c3e50;
-            }
-        """)
+        grupo_partida.setStyleSheet(self._grupo_style("#e67e22"))
         layout_partida = QVBoxLayout(grupo_partida)
 
-        self._crear_label_jugador(
-            layout_partida, "ID Partida",
-            game_state.partida_id[:8] + "..." if game_state.partida_id else None,
-        )
-        self._crear_label_jugador(
-            layout_partida, "Dimensiones Mapa",
-            self._dimensiones_display(),
-        )
-        self._crear_label_jugador(layout_partida, "Turno Actual", str(game_state.turno_actual))
+        self.label_id_partida = self._crear_label("ID Partida", None)
+        self.label_dimensiones = self._crear_label("Dimensiones Mapa", None)
+        self.label_turno = self._crear_label("Turno Actual", "0")
 
+        layout_partida.addWidget(self.label_id_partida)
+        layout_partida.addWidget(self.label_dimensiones)
+        layout_partida.addWidget(self.label_turno)
         layout.addWidget(grupo_partida)
 
-        # ── Mensaje final ──────────────────────────────────────────────
+        # ── Mensaje roadmap ────────────────────────────────────────────
         self.label_info = QLabel(
             "🚧 Vista placeholder. En la siguiente fase añadiremos:\n"
             "• Renderizado del mapa (MapWidget)\n"
@@ -184,68 +117,90 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central)
 
-        # ── Suscribirse a señales ──────────────────────────────────────
+        # ── Suscribirse a señales (REFRESCO AUTOMÁTICO) ────────────────
+        game_state.jugador_asignado.connect(self._on_jugador_asignado)
+        game_state.partida_actualizada.connect(self._on_partida_actualizada)
         game_state.turno_avanzado.connect(self._on_turno_avanzado)
         game_state.error_ocurrido.connect(self._on_error)
 
     # ==========================================
-    # HELPERS DE CONSTRUCCIÓN DE UI
+    # HELPERS DE UI
     # ==========================================
-    def _crear_label_jugador(
-        self, layout: QVBoxLayout, etiqueta: str, valor: str | None
-    ) -> None:
-        """Crea una fila de label con etiqueta: valor."""
-        row = QWidget()
-        row_layout = QVBoxLayout(row)
-        row_layout.setContentsMargins(0, 2, 0, 2)
-        row_layout.setSpacing(0)
+    def _grupo_style(self, color: str) -> str:
+        """Estilo reutilizable para QGroupBox."""
+        return f"""
+            QGroupBox {{
+                font-weight: bold;
+                font-size: 16px;
+                border: 2px solid {color};
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: #2c3e50;
+            }}
+        """
 
+    def _crear_label(self, etiqueta: str, valor: str | None) -> QLabel:
+        """Crea un label con formato 'Etiqueta: valor'."""
         label = QLabel(f"<b>{etiqueta}:</b> {valor or 'N/A'}")
-        label.setStyleSheet("font-size: 15px; color: #2c3e50;")
-        row_layout.addWidget(label)
+        label.setStyleSheet("font-size: 15px; color: #2c3e50; padding: 2px 0;")
+        # Guardamos el nombre de la etiqueta para poder refrescar
+        label.setProperty("etiqueta", etiqueta)
+        return label
 
-        layout.addWidget(row)
+    def _actualizar_label(self, label: QLabel, valor: str | None) -> None:
+        """Refresca el texto de un label."""
+        etiqueta = label.property("etiqueta")
+        label.setText(f"<b>{etiqueta}:</b> {valor or 'N/A'}")
 
-    def _personaje_display(self) -> str | None:
-        """Nombre del personaje en el juego."""
-        jugador = game_state.jugador
-        if jugador is None:
-            return None
-        return jugador["jugador_nombre"]
+    # ==========================================
+    # HANDLERS DE SEÑALES (REFRESCO AUTOMÁTICO)
+    # ==========================================
+    def _on_jugador_asignado(self, datos: dict) -> None:
+        """Se ejecuta cuando el jugador se une exitosamente a la partida."""
+        print(f"🔄 MainWindow: refrescando datos de jugador")
 
-    def _tipo_faccion_display(self) -> str | None:
-        """Tipo de facción con emoji."""
-        jugador = game_state.jugador
-        if jugador is None:
-            return None
-        tipo = jugador["faccion_tipo"]
-        emojis = {
-            "Imperio": "👑",
-            "Reino": "🏰",
-            "Tribu": "🏕️",
-        }
-        emoji = emojis.get(tipo, "")
-        return f"{emoji} {tipo}" if tipo else None
+        # Actualizar título de la ventana
+        self.setWindowTitle(f"Satrapia - {game_state.username or 'Jugador'}")
 
-    def _posicion_display(self) -> str | None:
-        """Coordenada formateada."""
+        # Refrescar grupo Jugador
+        self._actualizar_label(self.label_username, game_state.username)
+        self._actualizar_label(self.label_personaje, datos.get("jugador_nombre"))
+        self._actualizar_label(self.label_rol, game_state.rol)
+
+        # Refrescar grupo Facción
+        tipo = datos.get("faccion_tipo")
+        emojis = {"Imperio": "👑", "Reino": "🏰", "Tribu": "🏕️"}
+        tipo_display = f"{emojis.get(tipo, '')} {tipo}" if tipo else None
+
+        self._actualizar_label(self.label_tipo_faccion, tipo_display)
+        self._actualizar_label(self.label_nombre_faccion, game_state.faccion_nombre)
+        self._actualizar_label(self.label_capital, game_state.capital_nombre)
+
         pos = game_state.posicion_inicial
-        if pos is None:
-            return None
-        return f"({pos['x']}, {pos['y']})"
+        pos_display = f"({pos['x']}, {pos['y']})" if pos else None
+        self._actualizar_label(self.label_posicion, pos_display)
 
-    def _dimensiones_display(self) -> str | None:
-        """Dimensiones del mapa formateadas."""
+    def _on_partida_actualizada(self, datos: dict) -> None:
+        """Se ejecuta cuando los datos de la partida se actualizan."""
+        print(f"🔄 MainWindow: refrescando datos de partida")
+
+        partida_id = game_state.partida_id
+        id_display = partida_id[:8] + "..." if partida_id else None
+        self._actualizar_label(self.label_id_partida, id_display)
+
         dims = game_state.mapa_dimensiones
-        if dims:
-            return f"{dims[0]}x{dims[1]} km"
-        return None
+        dims_display = f"{dims[0]}x{dims[1]} km" if dims else None
+        self._actualizar_label(self.label_dimensiones, dims_display)
 
-    # ==========================================
-    # HANDLERS DE SEÑALES
-    # ==========================================
     def _on_turno_avanzado(self, turno: int) -> None:
-        """Actualiza el display del turno cuando avanza."""
+        """Actualiza el display del turno."""
+        self._actualizar_label(self.label_turno, str(turno))
         print(f"🔄 Turno actualizado a: {turno}")
 
     def _on_error(self, mensaje: str) -> None:
@@ -261,19 +216,22 @@ def main():
     print("🎮 Iniciando cliente Satrapia...")
     print(f"   📂 Directorio raíz: {ROOT_DIR}")
 
-    # 1. Crear la aplicación Qt
     app = QApplication(sys.argv)
     app.setApplicationName("Satrapia")
     app.setOrganizationName("Satrapia Games")
     app.setApplicationVersion("0.1.0")
 
-    # 2. Crear las dos ventanas
+    # Configurar qasync
+    loop = qasync.QEventLoop(app)
+    import asyncio
+    asyncio.set_event_loop(loop)
+
+    # Crear ventanas
     splash = SplashScreen()
     main_window = MainWindow()
 
-    # 3. Conectar señal: cuando la partida esté lista → abrir MainWindow
+    # Conectar señal: Splash → MainWindow
     def on_partida_lista():
-        """Transición: Splash → MainWindow."""
         splash.close()
         main_window.show()
         print("✅ Partida lista. Ventana principal abierta.")
@@ -284,15 +242,15 @@ def main():
 
     splash.partida_lista.connect(on_partida_lista)
 
-    # 4. Mostrar splash primero (MainWindow queda oculta hasta señal)
     splash.show()
 
     print(f"✅ Estado global inicializado: {type(game_state).__name__}")
-    print("🖥️  Splash screen mostrada (esperando servidor)")
+    print(f"✅ Event loop: qasync (Qt + asyncio integrados)")
+    print(f"🖥️  Splash screen mostrada (esperando servidor)")
     print("-" * 60)
 
-    # 5. Ejecutar el loop de eventos de Qt
-    sys.exit(app.exec())
+    with loop:
+        loop.run_forever()
 
 
 if __name__ == "__main__":

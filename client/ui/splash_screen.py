@@ -126,22 +126,26 @@ class SplashScreen(QWidget):
         grupo_jugador.setStyleSheet(grupo_partida.styleSheet())
         form_layout = QFormLayout(grupo_jugador)
 
-        # Campos del formulario
+        # Campos del formulario con valores por defecto (para pruebas rápidas)
         self.input_username = QLineEdit()
         self.input_username.setPlaceholderText("ciro_grande")
+        self.input_username.setText("Makoki")  # ← NUEVO
         self.input_username.setStyleSheet("padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px;")
 
         self.input_email = QLineEdit()
         self.input_email.setPlaceholderText("ciro@satrapia.com")
+        self.input_email.setText("m@m.com")  # ← NUEVO
         self.input_email.setStyleSheet("padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px;")
 
         self.input_password = QLineEdit()
         self.input_password.setPlaceholderText("TestPass123!")
+        self.input_password.setText("0123456789")  # ← NUEVO
         self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_password.setStyleSheet("padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px;")
 
         self.input_nombre_personaje = QLineEdit()
         self.input_nombre_personaje.setPlaceholderText("Ciro el Grande")
+        self.input_nombre_personaje.setText("Makoki")  # ← NUEVO
         self.input_nombre_personaje.setStyleSheet("padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px;")
 
         self.combo_rol = QComboBox()
@@ -156,6 +160,7 @@ class SplashScreen(QWidget):
 
         self.input_nombre_faccion = QLineEdit()
         self.input_nombre_faccion.setPlaceholderText("Imperio Aqueménida")
+        self.input_nombre_faccion.setText("Parta")  # ← NUEVO
         self.input_nombre_faccion.setStyleSheet("padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px;")
 
         # Añadir campos al formulario
