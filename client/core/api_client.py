@@ -1,29 +1,6 @@
 # client/core/api_client.py
 """
 Cliente HTTP para comunicarse con el backend Satrapia.
-
-Usa httpx async para no bloquear la UI de Qt.
-Todas las llamadas actualizan el GameState automáticamente.
-
-Uso:
-    from client.core.api_client import api_client
-
-    # Verificar conexión
-    conectado = await api_client.verificar_conexion()
-
-    # Listar partidas disponibles
-    partidas = await api_client.listar_partidas_disponibles()
-
-    # Unirse como Emperador
-    jugador = await api_client.unirse_partida(
-        partida_id="abc-123",
-        username="ciro",
-        email="ciro@test.com",
-        password="TestPass123!",
-        nombre_personaje="Ciro el Grande",
-        rol="Emperador",
-        nombre_faccion="Imperio Aqueménida"
-    )
 """
 from __future__ import annotations
 
@@ -38,27 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class ApiClient:
-    """
-    Cliente HTTP para el backend Satrapia.
-
-    Todas las llamadas son async y manejan errores gracefully,
-    actualizando el GameState y emitiendo señales de error si falla.
-    """
+    """Cliente HTTP para el backend Satrapia."""
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
         self.timeout = 10.0
 
-    # ==========================================
-    # CONEXIÓN
-    # ==========================================
     async def verificar_conexion(self) -> bool:
-        """
-        Verifica si el servidor está activo.
-
-        Returns:
-            True si el servidor responde, False en caso contrario.
-        """
+        """Verifica si el servidor está activo."""
         game_state.set_conexion("conectando")
 
         try:
@@ -78,16 +42,8 @@ class ApiClient:
             logger.warning("❌ Error de conexión: %s", e)
             return False
 
-    # ==========================================
-    # PARTIDAS
-    # ==========================================
     async def crear_partida(self, nombre: str, modo_desarrollo: bool = False) -> dict[str, Any] | None:
-        """
-        Crea una nueva partida (solo admin).
-
-        Returns:
-            Diccionario con datos de la partida o None si falla.
-        """
+        """Crea una nueva partida (solo admin)."""
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
                 resp = await client.post("/admin/partidas/crear", json={
@@ -123,31 +79,16 @@ class ApiClient:
             return []
 
     async def listar_partidas_disponibles(self) -> list[dict[str, Any]]:
-        """
-        Lista partidas en estado LOBBY (disponibles para unirse).
-
-        Returns:
-            Lista de partidas con formato:
-            [
-                {
-                    "id": "abc-123",
-                    "nombre": "Mundo de Pruebas",
-                    "jugadores": 0,
-                    "dimensiones": "200x200"
-                },
-                ...
-            ]
-        """
+        """Lista TODAS las partidas (cualquier estado)."""
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-                resp = await client.get("/jugador/partidas/disponibles")
+                resp = await client.get("/admin/partidas")
                 if resp.is_success:
-                    datos = resp.json()
-                    return datos.get("partidas", [])
-                logger.warning("Error listando partidas disponibles: %s", resp.text)
+                    return resp.json()
+                logger.warning("Error listando partidas: %s", resp.text)
                 return []
         except Exception as e:
-            logger.warning("Excepción listando partidas disponibles: %s", e)
+            logger.warning("Excepción listando partidas: %s", e)
             return []
 
     async def unirse_partida(
@@ -161,6 +102,7 @@ class ApiClient:
         nombre_faccion: str,
         posicion_inicial: dict[str, int] | None = None,
     ) -> dict[str, Any] | None:
+        """Une el jugador local a una partida."""
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
                 payload: dict[str, str | dict[str, int]] = {
@@ -180,8 +122,8 @@ class ApiClient:
                 if resp.is_success:
                     datos = resp.json()
 
-                    # ✅ Obtener dimensiones reales desde la lista de partidas
-                    dimensiones_mapa = "200x200"  # Default
+                    # Obtener dimensiones reales de la partida
+                    dimensiones_mapa = "200x200"
                     partidas_resp = await client.get("/admin/partidas")
                     if partidas_resp.is_success:
                         for p in partidas_resp.json():
@@ -189,14 +131,16 @@ class ApiClient:
                                 dimensiones_mapa = p.get("dimensiones_mapa", "200x200")
                                 break
 
+                    # ✅ ORDEN CRÍTICO: username ANTES de las señales
+                    game_state.username = username
+                    print(f"🔍 DEBUG: game_state.username = '{game_state.username}'")
+
                     game_state.set_partida({
                         "id": partida_id,
                         "dimensiones_mapa": dimensiones_mapa,
                     })
-                    game_state.set_jugador(datos)
 
-                    # ✅ Guardar también username (no viene en la respuesta del servidor)
-                    game_state.username = username
+                    game_state.set_jugador(datos)
 
                     logger.info("✅ Jugador unido: %s (%s)", datos["jugador_nombre"], datos["rol"])
                     return datos
@@ -247,9 +191,6 @@ class ApiClient:
             game_state.reportar_error(f"Excepción avanzando turno: {e}")
             return None
 
-    # ==========================================
-    # CONSTRUCCIÓN
-    # ==========================================
     async def construir_edificio(
         self,
         partida_id: str,
@@ -280,7 +221,4 @@ class ApiClient:
             return None
 
 
-# ==========================================
-# INSTANCIA GLOBAL
-# ==========================================
 api_client = ApiClient(base_url=game_state.servidor_url)

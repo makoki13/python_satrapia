@@ -163,6 +163,14 @@ class MainWindow(QMainWindow):
     # ==========================================
     def _on_jugador_asignado(self, datos: dict) -> None:
         """Se ejecuta cuando el jugador se une exitosamente a la partida."""
+
+        """Se ejecuta cuando el jugador se une exitosamente a la partida."""
+        print("🔍 DEBUG MainWindow: _on_jugador_asignado llamado")
+        print(f"🔍 DEBUG MainWindow: game_state.username = '{game_state.username}'")  # ← NUEVO
+        print(f"🔍 DEBUG MainWindow: datos recibidos = {datos}")  # ← NUEVO
+
+        # ... resto del código
+
         print("🔄 MainWindow: refrescando datos de jugador")
 
         # Actualizar título de la ventana

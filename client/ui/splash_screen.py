@@ -244,26 +244,47 @@ class SplashScreen(QWidget):
         asyncio.create_task(self._cargar_partidas_disponibles())
 
     async def _cargar_partidas_disponibles(self):
-        """Carga partidas en estado LOBBY desde el servidor."""
+        """Carga TODAS las partidas desde el servidor."""
         partidas = await api_client.listar_partidas_disponibles()
 
         self.combo_partidas.clear()
+        self._partidas_cache: list[dict] = partidas  # ← Guardar para validar estado
 
         if not partidas:
-            self.combo_partidas.addItem("❌ No hay partidas disponibles")
+            self.combo_partidas.addItem("❌ No hay partidas en el servidor")
             self.combo_partidas.setEnabled(False)
             self.btn_unirse.setEnabled(False)
             self.label_partida_info.setText(
-                "No hay partidas en estado LOBBY.\n"
+                "No hay partidas creadas.\n"
                 "Usa el backoffice para crear una partida primero."
             )
         else:
+            # Iconos por estado
+            iconos_estado = {
+                "LOBBY": "🟡",
+                "EN_CURSO": "🟢",
+                "FINALIZADA": "🏁",
+                "CANCELADA": "❌",
+            }
+
             for p in partidas:
-                texto = f"{p['nombre']} ({p['dimensiones']}, {p['jugadores']} jugadores)"
+                estado = p.get("estado", "LOBBY")
+                icono = iconos_estado.get(estado, "⚪")
+                dims = p.get("dimensiones_mapa", "?x?")
+                jugadores = p.get("jugadores", 0)
+                texto = f"{icono} {p['nombre']} ({dims}, {jugadores} jug.) [{estado}]"
                 self.combo_partidas.addItem(texto, p['id'])
+
             self.combo_partidas.setEnabled(True)
             self.btn_unirse.setEnabled(True)
-            self.label_partida_info.setText(f"✅ {len(partidas)} partida(s) disponible(s)")
+
+            # Contar por estado
+            counts: dict[str, int] = {}
+            for p in partidas:
+                e = p.get("estado", "?")
+                counts[e] = counts.get(e, 0) + 1
+            resumen = ", ".join(f"{k}: {v}" for k, v in counts.items())
+            self.label_partida_info.setText(f"✅ {len(partidas)} partida(s): {resumen}")
 
         self.btn_refrescar.setEnabled(True)
         self.label_info.setText("")
@@ -275,36 +296,40 @@ class SplashScreen(QWidget):
         """Valida formulario y se une a la partida seleccionada."""
         # Validar campos obligatorios
         if not self.input_username.text().strip():
-            self.label_info.setText("⚠️ El username es obligatorio")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("El username es obligatorio")
             return
-
         if not self.input_email.text().strip():
-            self.label_info.setText("⚠️ El email es obligatorio")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("El email es obligatorio")
             return
-
         if not self.input_password.text().strip():
-            self.label_info.setText("⚠️ La password es obligatoria")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("La password es obligatoria")
             return
-
         if not self.input_nombre_personaje.text().strip():
-            self.label_info.setText("⚠️ El nombre del personaje es obligatorio")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("El nombre del personaje es obligatorio")
             return
-
         if not self.input_nombre_faccion.text().strip():
-            self.label_info.setText("⚠️ El nombre de la facción es obligatorio")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("El nombre de la facción es obligatorio")
             return
 
         # Obtener partida seleccionada
         partida_id = self.combo_partidas.currentData()
         if not partida_id:
-            self.label_info.setText("⚠️ Selecciona una partida")
-            self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
+            self._mostrar_error("Selecciona una partida")
             return
+
+        # ✅ NUEVO: Validar que la partida esté en LOBBY
+        partida_seleccionada = next(
+            (p for p in getattr(self, "_partidas_cache", []) if p["id"] == partida_id),
+            None,
+        )
+        if partida_seleccionada:
+            estado = partida_seleccionada.get("estado", "LOBBY")
+            if estado != "LOBBY":
+                self._mostrar_error(
+                    f"No puedes unirte: la partida está en estado {estado}.\n"
+                    f"Solo puedes unirte a partidas en LOBBY."
+                )
+                return
 
         # Deshabilitar UI mientras se procesa
         self.btn_unirse.setEnabled(False)
@@ -312,8 +337,12 @@ class SplashScreen(QWidget):
         self.label_info.setText("Conectando con el servidor...")
         self.label_info.setStyleSheet("font-size: 13px; color: #34495e;")
 
-        # Llamar async a unirse
         asyncio.create_task(self._unirse_async(partida_id))
+
+    def _mostrar_error(self, mensaje: str) -> None:
+        """Muestra un mensaje de error en el label."""
+        self.label_info.setText(f"⚠️ {mensaje}")
+        self.label_info.setStyleSheet("font-size: 13px; color: #c0392b;")
 
     async def _unirse_async(self, partida_id: str):
         """Llama al endpoint /jugador/unirse."""
